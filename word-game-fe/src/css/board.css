@@ -1,0 +1,27 @@
+.board {
+    background: #3b3b3b;
+    table-layout: fixed;
+    margin: auto;
+}
+
+.board tr {
+    background: #3b3b3b;
+}
+
+.board td {
+    margin-left: 1px;
+    margin-right: 1px;
+}
+
+.deck {
+    margin: auto;
+}
+
+#boardControls {
+    text-align: center;
+}
+
+#gameWindow {
+    width: 100%;
+    position: relative;
+}

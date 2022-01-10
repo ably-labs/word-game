@@ -1,0 +1,27 @@
+#chat {
+    border: 1px solid grey;
+    height: 50vh;
+    width: 15vw;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+#chatHistory {
+    flex-grow: 1;
+}
+
+.message {
+    border-bottom: 1px solid lightgray;
+    padding: 5px;
+}
+
+.message:nth-of-type(even){
+    background: #fafafa;
+}
+
+.message.system {
+    font-style: italic;
+    font-weight: bold;
+    text-align: center;
+}

@@ -1,0 +1,68 @@
+.tile {
+    background: #E6E6E6;
+    border-radius: 5px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 2.5vw;
+    height: 2.5vw;
+    position: relative;
+    user-select: none;
+}
+
+.tile[draggable=true] .letter {
+    color: #444444;
+}
+
+.tile.bonus{
+    border-radius: 0;
+}
+
+.tile .letter {
+    font-family: 'Lato-Regular', sans-serif;
+    font-size: 2vw;
+    color: #666666;
+    position: absolute;
+    margin: auto;
+}
+
+.tile .score {
+    color: #4D4D4D;
+    display: block;
+    position: absolute;
+    font-size: 0.6vw;
+    right: 3px;
+    bottom: 3px;
+}
+
+.tile .bonusText {
+    text-align: center;
+    font-size: 0.5vw;
+    font-weight: bold;
+    pointer-events: none;
+}
+
+.tile.triple-word {
+    background: red;
+}
+
+.tile.double-word {
+    background: orange;
+}
+
+.tile.double-letter {
+    background: skyblue;
+}
+
+.tile.triple-letter {
+    background: deepskyblue;
+}
+
+.tile.empty {
+    background: grey;
+    border-radius: 0;
+}
+
+.drag {
+    filter: brightness(140%);
+}
