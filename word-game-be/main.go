@@ -26,7 +26,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	err = db.AutoMigrate(model.User{}, model.GameType{}, model.Lobby{})
+	err = db.AutoMigrate(model.User{}, model.GameType{}, model.LobbyMember{}, model.Lobby{})
 
 	if err != nil {
 		log.Fatalln(err)
@@ -60,7 +60,7 @@ func main() {
 	e.Use(localMiddleware.AuthoriseUser)
 
 	controller.NewAuthController(e.Group("auth"), db, ablyClient)
-	controller.NewLobbyController(e.Group("lobby"), db)
+	controller.NewLobbyController(e.Group("lobby"), db, ablyClient)
 
 	// Start the web server
 	e.Logger.Fatal(e.Start(":3001"))

@@ -27,7 +27,7 @@ func AuthoriseUser(handlerFunc echo.HandlerFunc) echo.HandlerFunc {
 		err := db.Find(&user).Error
 
 		if err != nil {
-			return c.JSON(500, entity.Error{Err: "Database error"})
+			return c.JSON(500, entity.ErrDatabaseError)
 		}
 
 		c.Set("user", &user)
@@ -39,7 +39,7 @@ func AuthoriseUser(handlerFunc echo.HandlerFunc) echo.HandlerFunc {
 func RequireAuthorisation(handlerFunc echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		if c.Get("user") == nil {
-			return c.JSON(401, entity.Error{Err: "Unauthorised"})
+			return c.JSON(401, entity.ErrUnauthorised)
 		}
 		return handlerFunc(c)
 	}
@@ -48,7 +48,7 @@ func RequireAuthorisation(handlerFunc echo.HandlerFunc) echo.HandlerFunc {
 func DisallowAuthorisation(handlerFunc echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		if c.Get("user") != nil {
-			return c.JSON(403, entity.Error{Err: "You must be logged out to use this endpoint."})
+			return c.JSON(403, entity.ErrLoggedIn)
 		}
 		return handlerFunc(c)
 	}

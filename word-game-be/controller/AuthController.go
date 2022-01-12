@@ -70,7 +70,7 @@ func (ac *AuthController) PostStartRegister(c echo.Context) error {
 	body := entity.Register{}
 	err := c.Bind(&body)
 	if err != nil {
-		return c.JSON(400, entity.Error{Err: "Invalid Input"})
+		return c.JSON(400, entity.ErrInvalidInput)
 	}
 	// Create the new user model early to check the nickname is unique
 	newUser := &model.User{
@@ -78,7 +78,7 @@ func (ac *AuthController) PostStartRegister(c echo.Context) error {
 	}
 
 	if newUser.Exists(ac.db) {
-		return c.JSON(409, entity.Error{Err: "A user with that name already exists"})
+		return c.JSON(409, entity.ErrUserExists)
 	}
 
 	// Generate a new UUID and store it as the user's ID
@@ -114,7 +114,7 @@ func (ac *AuthController) PostCompleteRegister(c echo.Context) error {
 	registerSession, sessionOk := sess.Values["register_session"].(webauthn.SessionData)
 	// If the values aren't there, the user hasn't initiated registration
 	if !userOk || !sessionOk {
-		return c.JSON(400, entity.Error{Err: "Bad session"})
+		return c.JSON(400, entity.ErrBadSession)
 	}
 	// Create the credential
 	credential, err := ac.Auth.CreateCredential(&newUser, registerSession, body)
@@ -127,7 +127,7 @@ func (ac *AuthController) PostCompleteRegister(c echo.Context) error {
 	err = ac.db.Create(&newUser).Error
 	if err != nil {
 		fmt.Println(err)
-		return c.JSON(500, entity.Error{Err: "Could not create user"})
+		return c.JSON(500, entity.ErrUserCreateFailed)
 	}
 
 	// Clear the session data
@@ -143,7 +143,7 @@ func (ac *AuthController) PostStartLogin(c echo.Context) error {
 	body := entity.Register{}
 	err := c.Bind(&body)
 	if err != nil {
-		return c.JSON(400, entity.Error{Err: "Invalid Input"})
+		return c.JSON(400, entity.ErrInvalidInput)
 	}
 
 	user := model.User{
@@ -152,11 +152,11 @@ func (ac *AuthController) PostStartLogin(c echo.Context) error {
 
 	err = ac.db.Where(&user).First(&user).Error
 	if err == gorm.ErrRecordNotFound {
-		return c.JSON(404, entity.Error{Err: "User does not exist, you must register first."})
+		return c.JSON(404, entity.ErrUserDoesNotExist)
 	}
 	if err != nil {
 		fmt.Println(err)
-		return c.JSON(500, entity.Error{Err: "Database Error"})
+		return c.JSON(500, entity.ErrDatabaseError)
 	}
 	fmt.Println(user)
 
@@ -187,7 +187,7 @@ func (ac *AuthController) PostCompleteLogin(c echo.Context) error {
 	user, userOk := sess.Values["login_user"].(model.User)
 
 	if !sessOk || !userOk {
-		return c.JSON(400, entity.Error{Err: "Bad session"})
+		return c.JSON(400, entity.ErrDatabaseError)
 	}
 
 	sess.Values["login_session"] = nil
