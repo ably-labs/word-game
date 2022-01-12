@@ -41,13 +41,12 @@ export default ({onClose, open, onSignIn})=>{
         setIsRegistering(true);
         setError({error: false, helperText: ""});
         try {
-            // TODO: Error handling
             const {data} = await defAxios.post("auth/register/start", {nickname});
             data.publicKey.challenge = Base64ToUint8Array(data.publicKey.challenge);
             data.publicKey.user.id = Base64ToUint8Array(data.publicKey.user.id);
             let credential = await navigator.credentials.create(data);
             console.log(credential);
-            let {data: validationResponse} = await defAxios.post("auth/register/confirm", {
+            let {data: validationResponse, headers: {'set-cookie': cookie}} = await defAxios.post("auth/register/confirm", {
                 id: credential.id,
                 rawId: ArrayBufferToBase64(credential.rawId),
                 response: {
@@ -56,7 +55,7 @@ export default ({onClose, open, onSignIn})=>{
                 },
                 type: credential.type,
             })
-            onSignIn(validationResponse);
+            onSignIn(validationResponse, cookie);
         }catch(e){
             setError({error: true, helperText: e.response?.data?.err || e.message});
         }finally {
@@ -72,7 +71,7 @@ export default ({onClose, open, onSignIn})=>{
             data.publicKey.challenge = Base64ToUint8Array(data.publicKey.challenge);
             data.publicKey.allowCredentials.forEach((cred) => cred.id = Base64ToUint8Array(cred.id))
             const assertion = await navigator.credentials.get(data);
-            let {data: validationResponse} = await defAxios.post("auth/login/confirm", {
+            let {data: validationResponse, headers: {'set-cookie': cookie}} = await defAxios.post("auth/login/confirm", {
                 id: assertion.id,
                 rawId: ArrayBufferToBase64(assertion.rawId),
                 response: {
@@ -83,7 +82,7 @@ export default ({onClose, open, onSignIn})=>{
                 },
                 type: assertion.type,
             });
-            onSignIn(validationResponse);
+            onSignIn(validationResponse, cookie);
         }catch(e){
             setError({error: true, helperText: e.response?.data?.err || e.message});
         }finally {

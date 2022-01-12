@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/ably-labs/word-game/word-game-be/entity"
 	"github.com/ably-labs/word-game/word-game-be/model"
+	"github.com/ably/ably-go/ably"
 	"github.com/duo-labs/webauthn/protocol"
 	"github.com/duo-labs/webauthn/webauthn"
 	"github.com/google/uuid"
@@ -14,15 +15,17 @@ import (
 	"gorm.io/gorm"
 	"log"
 	"os"
+	"strconv"
 	"time"
 )
 
 type AuthController struct {
 	Auth *webauthn.WebAuthn
 	db   *gorm.DB
+	ably *ably.Realtime
 }
 
-func NewAuthController(e *echo.Group, db *gorm.DB) *AuthController {
+func NewAuthController(e *echo.Group, db *gorm.DB, ably *ably.Realtime) *AuthController {
 	feRoot := os.Getenv("FRONTEND_BASE_URL")
 	//beRoot := os.Getenv("BACKEND_BASE_URL")
 	web, err := webauthn.New(&webauthn.Config{
@@ -45,16 +48,18 @@ func NewAuthController(e *echo.Group, db *gorm.DB) *AuthController {
 	ac := AuthController{
 		Auth: web,
 		db:   db,
+		ably: ably,
 	}
 
 	// Registration
-	e.POST("register/start", ac.PostStartRegister)
-	e.POST("register/confirm", ac.PostCompleteRegister)
+	e.POST("/register/start", ac.PostStartRegister)
+	e.POST("/register/confirm", ac.PostCompleteRegister)
 
 	// Login
-	e.POST("login/start", ac.PostStartLogin)
-	e.POST("login/confirm", ac.PostCompleteLogin)
+	e.POST("/login/start", ac.PostStartLogin)
+	e.POST("/login/confirm", ac.PostCompleteLogin)
 
+	e.GET("/token", ac.GetAblyToken)
 	return &ac
 }
 
@@ -117,7 +122,6 @@ func (ac *AuthController) PostCompleteRegister(c echo.Context) error {
 	credJson, _ := json.Marshal([]webauthn.Credential{*credential})
 	newUser.Credentials = credJson
 
-	// TODO: Ably token
 	err = ac.db.Create(&newUser).Error
 	if err != nil {
 		fmt.Println(err)
@@ -127,7 +131,9 @@ func (ac *AuthController) PostCompleteRegister(c echo.Context) error {
 	// Clear the session data
 	sess.Values["register_session"] = nil
 	sess.Values["register_user"] = nil
+	sess.Values["user_id"] = newUser.ID
 	_ = sess.Save(c.Request(), c.Response())
+
 	return c.JSON(200, newUser)
 }
 
@@ -184,18 +190,38 @@ func (ac *AuthController) PostCompleteLogin(c echo.Context) error {
 
 	sess.Values["login_session"] = nil
 	sess.Values["login_user"] = nil
-	err = sess.Save(c.Request(), c.Response())
 
 	_, err = ac.Auth.ValidateLogin(&user, sessionData, body)
 
 	if err != nil {
+		_ = sess.Save(c.Request(), c.Response())
 		return c.JSON(400, err)
 	}
 
 	user.LastActive = time.Now()
 	ac.db.Save(user)
 
-	// TODO Handle session here
+	sess.Values["user_id"] = user.ID
+	_ = sess.Save(c.Request(), c.Response())
 
 	return c.JSON(200, user)
+}
+
+func (ac *AuthController) GetAblyToken(c echo.Context) error {
+	sess, _ := session.Get("session", c)
+	user, userOk := sess.Values["user_id"].(uint32)
+
+	if !userOk {
+		return c.JSON(401, entity.Error{Err: "Unauthorised"})
+	}
+
+	req, err := ac.ably.Auth.CreateTokenRequest(&ably.TokenParams{
+		ClientID: strconv.Itoa(int(user)),
+		//Timestamp: time.Now().UnixNano(),
+	})
+	if err != nil {
+		return c.JSON(500, err)
+	}
+
+	return c.JSON(200, req)
 }

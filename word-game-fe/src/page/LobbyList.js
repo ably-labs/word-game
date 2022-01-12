@@ -1,5 +1,7 @@
 import Grid from "@mui/material/Grid";
 import LobbyPreview from "../component/LobbyPreview";
+import {useEffect, useState} from "react";
+import defAxios from "../Http";
 
 
 let games = (new Array(10)).fill(1).map((_, i)=>({
@@ -12,9 +14,17 @@ let games = (new Array(10)).fill(1).map((_, i)=>({
     thumbnail: "https://placekitten.com/256/256"
 }))
 
-export default ()=>{
+export default ({user, realtime})=>{
+
+    const [lobbies, setLobbies] = useState([]);
+
+    useEffect(async ()=>{
+        const {data: lobbies} = await defAxios.get("lobby");
+        setLobbies(lobbies)
+    }, [user]);
+
     return <Grid container spacing={2}>
-        {games.map((lobby)=><Grid item xs={2}>
+        {lobbies.map((lobby)=><Grid item xs={2}>
             <LobbyPreview lobby={lobby}/>
         </Grid>)}
     </Grid>

@@ -3,6 +3,7 @@ module github.com/ably-labs/word-game/word-game-be
 go 1.17
 
 require (
+	github.com/ably/ably-go v1.2.3
 	github.com/duo-labs/webauthn v0.0.0-20211221191814-a22482edaa3b
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/sessions v1.2.1
@@ -37,6 +38,7 @@ require (
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mitchellh/mapstructure v1.1.2 // indirect
 	github.com/satori/go.uuid v1.2.0 // indirect
+	github.com/ugorji/go/codec v1.1.7 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
