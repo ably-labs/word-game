@@ -3,11 +3,12 @@ package main
 import (
 	"fmt"
 	"github.com/ably-labs/word-game/word-game-be/controller"
+	localMiddleware "github.com/ably-labs/word-game/word-game-be/middleware"
 	"github.com/ably-labs/word-game/word-game-be/model"
 	"github.com/ably/ably-go/ably"
 	"github.com/gorilla/sessions"
 	"github.com/labstack/echo-contrib/session"
-	echo "github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -25,7 +26,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	err = db.AutoMigrate(model.User{}, model.Lobby{})
+	err = db.AutoMigrate(model.User{}, model.GameType{}, model.Lobby{})
 
 	if err != nil {
 		log.Fatalln(err)
@@ -36,6 +37,15 @@ func main() {
 	// Create the web server and routes
 	e := echo.New()
 
+	// Inject the DB instance into echo to use with middlewares
+	e.Use(func(handlerFunc echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Set("db", db)
+			return handlerFunc(c)
+		}
+	})
+
+	// Setup CORS Headers
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOriginFunc: func(origin string) (bool, error) {
 			// TODO: This should be actual origins
@@ -43,8 +53,11 @@ func main() {
 		},
 		AllowCredentials: true,
 	}))
+
 	// Initialise the session storage.
 	e.Use(session.Middleware(sessions.NewCookieStore([]byte(os.Getenv("SESSION_SECRET")))))
+
+	e.Use(localMiddleware.AuthoriseUser)
 
 	controller.NewAuthController(e.Group("auth"), db, ablyClient)
 	controller.NewLobbyController(e.Group("lobby"), db)

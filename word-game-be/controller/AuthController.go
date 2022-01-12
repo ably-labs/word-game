@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ably-labs/word-game/word-game-be/entity"
+	"github.com/ably-labs/word-game/word-game-be/middleware"
 	"github.com/ably-labs/word-game/word-game-be/model"
 	"github.com/ably/ably-go/ably"
 	"github.com/duo-labs/webauthn/protocol"
@@ -52,14 +53,15 @@ func NewAuthController(e *echo.Group, db *gorm.DB, ably *ably.Realtime) *AuthCon
 	}
 
 	// Registration
-	e.POST("/register/start", ac.PostStartRegister)
-	e.POST("/register/confirm", ac.PostCompleteRegister)
+	e.POST("/register/start", ac.PostStartRegister, middleware.DisallowAuthorisation)
+	e.POST("/register/confirm", ac.PostCompleteRegister, middleware.DisallowAuthorisation)
 
 	// Login
-	e.POST("/login/start", ac.PostStartLogin)
-	e.POST("/login/confirm", ac.PostCompleteLogin)
+	e.POST("/login/start", ac.PostStartLogin, middleware.DisallowAuthorisation)
+	e.POST("/login/confirm", ac.PostCompleteLogin, middleware.DisallowAuthorisation)
 
-	e.GET("/token", ac.GetAblyToken)
+	e.GET("/token", ac.GetAblyToken, middleware.RequireAuthorisation)
+	e.GET("/me", ac.GetMe, middleware.RequireAuthorisation)
 	return &ac
 }
 
@@ -208,20 +210,18 @@ func (ac *AuthController) PostCompleteLogin(c echo.Context) error {
 }
 
 func (ac *AuthController) GetAblyToken(c echo.Context) error {
-	sess, _ := session.Get("session", c)
-	user, userOk := sess.Values["user_id"].(uint32)
-
-	if !userOk {
-		return c.JSON(401, entity.Error{Err: "Unauthorised"})
-	}
+	user := c.Get("user").(*model.User)
 
 	req, err := ac.ably.Auth.CreateTokenRequest(&ably.TokenParams{
-		ClientID: strconv.Itoa(int(user)),
-		//Timestamp: time.Now().UnixNano(),
+		ClientID: strconv.Itoa(int(*user.ID)),
 	})
 	if err != nil {
 		return c.JSON(500, err)
 	}
 
 	return c.JSON(200, req)
+}
+
+func (ac *AuthController) GetMe(c echo.Context) error {
+	return c.JSON(200, c.Get("user"))
 }
