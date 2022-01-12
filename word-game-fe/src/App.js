@@ -10,14 +10,14 @@ import '../src/css/app.css';
 
 
 function App() {
-    const [user, setUser] = useState({name: ""})
+    const [user, setUser] = useState({})
     return (
         <>
             <Routes>
                 <Route path="/" element={<LobbyList/>}/>
                 <Route path="/lobby" element={<Lobby/>}/>
             </Routes>
-            <LoginManager open={!user.name} onSignIn={(nickname)=>setUser({name: nickname})}/>
+            <LoginManager open={!user.name} onSignIn={(user)=>setUser(user)}/>
         </>
     );
 }

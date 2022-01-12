@@ -2,6 +2,7 @@ package controller
 
 import (
 	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"github.com/ably-labs/word-game/word-game-be/entity"
 	"github.com/ably-labs/word-game/word-game-be/model"
@@ -13,6 +14,7 @@ import (
 	"gorm.io/gorm"
 	"log"
 	"os"
+	"time"
 )
 
 type AuthController struct {
@@ -45,52 +47,155 @@ func NewAuthController(e *echo.Group, db *gorm.DB) *AuthController {
 		db:   db,
 	}
 
+	// Registration
 	e.POST("register/start", ac.PostStartRegister)
 	e.POST("register/confirm", ac.PostCompleteRegister)
+
+	// Login
+	e.POST("login/start", ac.PostStartLogin)
+	e.POST("login/confirm", ac.PostCompleteLogin)
 
 	return &ac
 }
 
+// PostStartRegister initiates the WebAuthn request on the client
 func (ac *AuthController) PostStartRegister(c echo.Context) error {
 	body := entity.Register{}
 	err := c.Bind(&body)
 	if err != nil {
 		return c.JSON(400, entity.Error{Err: "Invalid Input"})
 	}
-	uid, _ := uuid.NewUUID()
-	sess, _ := session.Get("session", c)
-	userId := uid.ID()
+	// Create the new user model early to check the nickname is unique
 	newUser := &model.User{
-		ID:   &userId,
 		Name: body.Nickname,
 	}
-	options, sessionData, _ := ac.Auth.BeginRegistration(newUser)
+
+	if newUser.Exists(ac.db) {
+		return c.JSON(409, entity.Error{Err: "A user with that name already exists"})
+	}
+
+	// Generate a new UUID and store it as the user's ID
+	uid := uuid.New()
+	userId := uid.ID()
+	newUser.ID = &userId
+
+	options, sessionData, err := ac.Auth.BeginRegistration(newUser)
+
+	if err != nil {
+		return c.JSON(400, err)
+	}
+
+	sess, _ := session.Get("session", c)
 	sess.Values["register_session"] = sessionData
 	sess.Values["register_user"] = *newUser
 	err = sess.Save(c.Request(), c.Response())
-	fmt.Println(err)
+
 	return c.JSON(200, options)
 }
 
+// PostCompleteRegister completes the registration and creates the user
 func (ac *AuthController) PostCompleteRegister(c echo.Context) error {
+	// Parse the incoming request as a CredentialCreationResponseBody
 	body, err := protocol.ParseCredentialCreationResponseBody(c.Request().Body)
 	if err != nil {
-		fmt.Println(err.Error())
 		return c.JSON(400, err)
 	}
+
+	// Retrieve the session and registration values
 	sess, _ := session.Get("session", c)
-	newUser, ok := sess.Values["register_user"].(model.User)
-	if !ok {
+	newUser, userOk := sess.Values["register_user"].(model.User)
+	registerSession, sessionOk := sess.Values["register_session"].(webauthn.SessionData)
+	// If the values aren't there, the user hasn't initiated registration
+	if !userOk || !sessionOk {
 		return c.JSON(400, entity.Error{Err: "Bad session"})
 	}
-	fmt.Println(newUser)
-	credential, err := ac.Auth.CreateCredential(&newUser, sess.Values["register_session"].(webauthn.SessionData), body)
+	// Create the credential
+	credential, err := ac.Auth.CreateCredential(&newUser, registerSession, body)
 	if err != nil {
 		return c.JSON(400, err)
 	}
-	fmt.Println(credential)
+	credJson, _ := json.Marshal([]webauthn.Credential{*credential})
+	newUser.Credentials = credJson
+
 	// TODO: Ably token
-	newUser.Credentials = []webauthn.Credential{*credential}
-	ac.db.Create(&newUser)
+	err = ac.db.Create(&newUser).Error
+	if err != nil {
+		fmt.Println(err)
+		return c.JSON(500, entity.Error{Err: "Could not create user"})
+	}
+
+	// Clear the session data
+	sess.Values["register_session"] = nil
+	sess.Values["register_user"] = nil
+	_ = sess.Save(c.Request(), c.Response())
 	return c.JSON(200, newUser)
+}
+
+func (ac *AuthController) PostStartLogin(c echo.Context) error {
+	body := entity.Register{}
+	err := c.Bind(&body)
+	if err != nil {
+		return c.JSON(400, entity.Error{Err: "Invalid Input"})
+	}
+
+	user := model.User{
+		Name: body.Nickname,
+	}
+
+	err = ac.db.Where(&user).First(&user).Error
+	if err == gorm.ErrRecordNotFound {
+		return c.JSON(404, entity.Error{Err: "User does not exist, you must register first."})
+	}
+	if err != nil {
+		fmt.Println(err)
+		return c.JSON(500, entity.Error{Err: "Database Error"})
+	}
+	fmt.Println(user)
+
+	_ = json.Unmarshal(user.Credentials, &user.CredentialsObj)
+
+	options, sessionData, err := ac.Auth.BeginLogin(&user)
+
+	if err != nil {
+		return c.JSON(400, err)
+	}
+
+	sess, _ := session.Get("session", c)
+	sess.Values["login_session"] = sessionData
+	sess.Values["login_user"] = user
+	err = sess.Save(c.Request(), c.Response())
+
+	return c.JSON(200, options)
+}
+
+func (ac *AuthController) PostCompleteLogin(c echo.Context) error {
+	body, err := protocol.ParseCredentialRequestResponseBody(c.Request().Body)
+	if err != nil {
+		return c.JSON(400, err)
+	}
+
+	sess, _ := session.Get("session", c)
+	sessionData, sessOk := sess.Values["login_session"].(webauthn.SessionData)
+	user, userOk := sess.Values["login_user"].(model.User)
+
+	if !sessOk || !userOk {
+		return c.JSON(400, entity.Error{Err: "Bad session"})
+	}
+
+	sess.Values["login_session"] = nil
+	sess.Values["login_user"] = nil
+	err = sess.Save(c.Request(), c.Response())
+
+	_, err = ac.Auth.ValidateLogin(&user, sessionData, body)
+
+	if err != nil {
+		return c.JSON(400, err)
+	}
+
+	user.LastActive = time.Now()
+	ac.db.Save(user)
+
+	// TODO Handle session here
+
+	return c.JSON(200, user)
 }
