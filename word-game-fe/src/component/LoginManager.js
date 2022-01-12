@@ -1,20 +1,10 @@
 import {
-    Dialog,
-    DialogTitle,
-    Divider, IconButton, InputAdornment,
-    List,
-    ListItem,
-    ListItemAvatar, ListItemButton,
-    ListItemText, TextField,
+    Button,
+    Dialog, DialogActions, DialogContent,
+    DialogTitle, TextField,
 } from "@mui/material";
-import PersonIcon from '@mui/icons-material/Person';
-import ArrowCircleRightIcon from '@mui/icons-material/ArrowCircleRight';
-import GoogleIcon from "./GoogleIcon";
-import {
-    Link,
-    useHref,
-} from "react-router-dom";
 import {useEffect, useState} from "react";
+import defAxios from "../Http";
 
 
 // Constants for nickname validation
@@ -44,38 +34,48 @@ export default ({onClose, open, onSignIn})=>{
         }
     }, [nickname])
 
+
+    const handleRegister = async ()=>{
+        // TODO: Error handling
+        const {data} = await defAxios.post("auth/register/start", {nickname});
+        data.publicKey.challenge = Uint8Array.from(atob(data.publicKey.challenge), c => c.charCodeAt(0))
+        data.publicKey.user.id = Uint8Array.from(atob(data.publicKey.user.id), c => c.charCodeAt(0))
+        let credential = await navigator.credentials.create(data);
+        console.log(credential);
+        let {data: validationResponse} = await defAxios.post("auth/register/confirm", {
+            id: credential.id,
+            rawId: ArrayBufferToBase64(credential.rawId),
+            response: {
+                attestationObject: ArrayBufferToBase64(credential.response.attestationObject),
+                clientDataJSON:  ArrayBufferToBase64(credential.response.clientDataJSON)
+            },
+            type: credential.type,
+        })
+        console.log(validationResponse);
+    }
+
+
     return <Dialog onClose={onClose} open={open}>
-        <DialogTitle>Login</DialogTitle>
-        <List sx={{ width: '100%', maxWidth: 360, bgcolor: 'background.paper' }}>
-            <ListItem>
-                <ListItemButton disabled onClick={()=>window.location.href="https://google.com"} >
-                    <ListItemAvatar >
-                        <GoogleIcon fontSize="large" />
-                    </ListItemAvatar>
-                    <ListItemText primary="Login with Google (TODO)"/>
-                </ListItemButton>
-            </ListItem>
-            <Divider variant="inset" component="li" textAlign="left" sx={{fontVariantCaps: "all-small-caps"}}>or</Divider>
-            <ListItem alignItems="flex-start">
-                <ListItemAvatar>
-                    <PersonIcon/>
-                </ListItemAvatar>
-                <ListItemText
-                    primary="Continue as Guest"
-                    secondary={
-                    <TextField label="Nickname"
-                        type="text"
-                        size="small"
-                        value={nickname}
-                        {...error}
-                        onChange={(e)=>setNickname(e.target.value)}
-                        InputProps={{endAdornment: <InputAdornment position="end">
-                        <IconButton edge="end" color="primary" disabled={nickname.length < MIN_NICKNAME_LENGTH || error.error} onClick={()=>onSignIn(nickname)}>
-                            <ArrowCircleRightIcon/>
-                        </IconButton>
-                    </InputAdornment>}}/>}
-                />
-            </ListItem>
-        </List>
+        <DialogTitle>Login or Register</DialogTitle>
+        <DialogContent>
+            <TextField label="Nickname"
+                       type="text"
+                       size="small"
+                       value={nickname}
+                       {...error}
+                       onChange={(e)=>setNickname(e.target.value)}/>
+        </DialogContent>
+        <DialogActions>
+            <Button>Login</Button>
+            <Button onClick={handleRegister}>Register</Button>
+        </DialogActions>
     </Dialog>
+}
+
+
+function ArrayBufferToBase64(arr){
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(arr))).replace(/\//g, '_').replace(/\+/g, '-');
+    const ind = base64.indexOf("=");
+    if(ind === -1)return base64;
+    return base64.substring(0, base64.indexOf("="));
 }

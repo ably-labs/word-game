@@ -6,6 +6,7 @@ export default ({index, children, style, className = "tile empty", onTileDropped
     const [draggedOver, setDraggedOver] = useState(false);
 
     const dragEnter = (ev)=>{
+        console.log("Drag");
         setDraggedOver(true);
         ev.preventDefault();
     }
@@ -21,6 +22,7 @@ export default ({index, children, style, className = "tile empty", onTileDropped
     }
 
     const onDrop = (ev)=>{
+        if(!ev.dataTransfer.getData("source"))return;
         onTileDropped(ev.dataTransfer.getData("source"), ev.dataTransfer.getData("index"), source, index)
         ev.preventDefault();
     }

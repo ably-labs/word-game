@@ -67,12 +67,12 @@ class GameWindow extends React.Component {
             // Create a copy of the object
             main[i] = Object.create(tileTypes[layout[i]])
         }
-        main[10].tile = {letter: "A", score: 1, draggable: false};
+        main[10].tile = {letter: "A", score: 1, draggable: true};
         let deck = Array(GAME_DECK_LENGTH).fill(0).map(()=>({}))
         deck[0].tile = {letter: "P", score: 1, draggable: true}
-        deck[3].tile = {letter: "E", score: 1, draggable: true}
+        deck[1].tile = {letter: "E", score: 1, draggable: true}
         deck[2].tile = {letter: "L", score: 1, draggable: true}
-        deck[1].tile = {letter: "P", score: 1, draggable: true}
+        deck[3].tile = {letter: "P", score: 1, draggable: true}
         this.setState({
             boards: {main, deck}
         });
@@ -87,11 +87,13 @@ class GameWindow extends React.Component {
                 const square = this.state.boards.main[i];
                 cols.push(this.drawSquare(square, i, "main"))
             }
-            rows.push(<tr>{cols}</tr>)
+            rows.push(<tr key={`main-row${y}`}>{cols}</tr>)
         }
         return <div id="gameWindow">
             <table className="board">
-                {rows}
+                <tbody>
+                    {rows}
+                </tbody>
             </table>
             <div id="boardControls">
                 <IconButton title="Recall" onClick={this.recallTiles}><KeyboardDoubleArrowDownIcon/></IconButton>
@@ -99,18 +101,21 @@ class GameWindow extends React.Component {
                 <IconButton title="Swap" onClick={this.swapTiles}><SwapVertIcon/></IconButton>
             </div>
             <table className="deck">
-                <tr>{this.state.boards.deck.map((e, i)=>this.drawSquare(e,i, "deck"))}</tr>
+                <tbody>
+                    <tr>{this.state.boards.deck.map((e, i)=>this.drawSquare(e,i, "deck"))}</tr>
+                </tbody>
             </table>
         </div>
     }
 
     drawSquare(square, i, source){
+        const key = `${source}${i}`
         if(square?.tile)
-            return <LetterTile {...square.tile} index={i} source={source}/>
+            return <LetterTile {...square.tile} index={i} source={source} key={key}/>
         else if(square?.bonus)
-            return <BonusTile {...square.bonus} index={i} onTileDropped={this.handleTileDrop} source={source}/>
+            return <BonusTile {...square.bonus} index={i} onTileDropped={this.handleTileDrop} source={source} key={key}/>
         else
-            return <EmptyTile index={i} onTileDropped={this.handleTileDrop} source={source}/>
+            return <EmptyTile index={i} onTileDropped={this.handleTileDrop} source={source} key={key}/>
     }
 
     handleTileDrop(from, fromIndex, to, toIndex){

@@ -6,6 +6,8 @@ import LobbyList from "./page/LobbyList";
 import LoginManager from "./component/LoginManager";
 import {useState} from "react";
 import Lobby from "./page/Lobby";
+import '../src/css/app.css';
+
 
 function App() {
     const [user, setUser] = useState({name: ""})
