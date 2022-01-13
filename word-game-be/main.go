@@ -26,7 +26,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	err = db.AutoMigrate(model.User{}, model.GameType{}, model.LobbyMember{}, model.Lobby{})
+	err = db.AutoMigrate(model.User{}, model.GameType{}, model.Lobby{}, model.LobbyMember{})
 
 	if err != nil {
 		log.Fatalln(err)

@@ -24,9 +24,12 @@ func AuthoriseUser(handlerFunc echo.HandlerFunc) echo.HandlerFunc {
 			ID: &userId,
 		}
 
-		err := db.Find(&user).Error
+		err := db.First(&user).Error
 
-		if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			// User doesn't exist anymore
+			return handlerFunc(c)
+		} else if err != nil {
 			return c.JSON(500, entity.ErrDatabaseError)
 		}
 
