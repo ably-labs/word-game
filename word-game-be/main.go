@@ -26,7 +26,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	err = db.AutoMigrate(model.User{}, model.GameType{}, model.Lobby{}, model.LobbyMember{})
+	err = db.AutoMigrate(model.User{}, model.GameType{}, model.Lobby{}, model.LobbyMember{}, model.Message{})
 
 	if err != nil {
 		log.Fatalln(err)
@@ -61,12 +61,14 @@ func main() {
 
 	controller.NewAuthController(e.Group("auth"), db, ablyClient)
 	controller.NewLobbyController(e.Group("lobby"), db, ablyClient)
+	controller.NewChatController(e.Group("chat"), db, ablyClient)
 
 	// Start the web server
 	e.Logger.Fatal(e.Start(":3001"))
 }
 
 func initAbly() *ably.Realtime {
+
 	client, err := ably.NewRealtime(ably.WithKey(os.Getenv("ABLY_KEY")))
 	if err != nil {
 		log.Fatalln(err)

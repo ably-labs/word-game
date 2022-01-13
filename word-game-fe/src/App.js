@@ -9,6 +9,7 @@ import Lobby from "./page/Lobby";
 import '../src/css/app.css';
 import Ably from 'ably'
 import defAxios from "./Http";
+import CreateLobby from "./page/CreateLobby";
 
 function App() {
     const [user, setUser] = useState({})
@@ -46,7 +47,8 @@ function App() {
         <>
             <Routes>
                 <Route path="/" element={<LobbyList user={user} realtime={realtime}/>}/>
-                <Route path="/lobby/:id" element={<Lobby/>}/>
+                <Route path="/lobby/new" element={<CreateLobby/>}/>
+                <Route path="/lobby/:id" element={<Lobby user={user} realtime={realtime}/>}/>
             </Routes>
             <LoginManager open={!user.name} onSignIn={onSignIn}/>
         </>

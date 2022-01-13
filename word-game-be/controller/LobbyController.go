@@ -10,7 +10,7 @@ import (
 	"github.com/ably/ably-go/ably"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
-	"strconv"
+	"time"
 )
 
 type LobbyController struct {
@@ -26,56 +26,69 @@ func NewLobbyController(e *echo.Group, db *gorm.DB, ably *ably.Realtime) *LobbyC
 	}
 
 	e.GET("", lc.GetLobbies)
+	e.POST("", lc.PostLobby, middleware.RequireAuthorisation)
 
 	// Endpoints which require a valid lobby
-	lobbyGroup := e.Group("/:id", middleware.RequireAuthorisation, lc.MwValidateLobby)
+	lobbyGroup := e.Group("/:id", middleware.RequireAuthorisation, middleware.ValidateLobby)
 	lobbyGroup.GET("/thumbnail", lc.GetLobbyThumbnail)
 	lobbyGroup.PUT("/member", lc.PutMember)
-	lobbyGroup.DELETE("/member", lc.DeleteMember)
-	lobbyGroup.PATCH("/member", lc.PatchMember)
+	lobbyGroup.DELETE("/member", lc.DeleteMember, middleware.RequireLobbyMember)
+	lobbyGroup.PATCH("/member", lc.PatchMember, middleware.RequireLobbyMember)
 
 	return &lc
 }
 
 func (lc *LobbyController) GetLobbies(c echo.Context) error {
 	var lobbies []model.Lobby
-	lc.db.Preload("GameType").Find(&lobbies)
+	lc.db.Preload("GameType").Preload("Creator").Find(&lobbies)
 	return c.JSON(200, lobbies)
 }
 
-func (lc *LobbyController) MwValidateLobby(handlerFunc echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		lobbyId, err := strconv.Atoi(c.Param("id"))
-		if err != nil {
-			return c.JSON(400, entity.ErrInvalidLobby)
-		}
-
-		castLobbyId := uint32(lobbyId)
-
-		lobby := model.Lobby{ID: &castLobbyId}
-		err = lc.db.Find(&lobby).Error
-
-		if err == gorm.ErrRecordNotFound {
-			return c.JSON(404, entity.ErrLobbyNotFound)
-		}
-		if err != nil {
-			return c.JSON(500, entity.ErrDatabaseError)
-		}
-		c.Set("lobby", &lobby)
-
-		return handlerFunc(c)
+func (lc *LobbyController) PostLobby(c echo.Context) error {
+	createLobby := entity.CreateLobby{}
+	err := c.Bind(&createLobby)
+	if err != nil {
+		return c.JSON(400, entity.ErrInvalidInput)
 	}
-}
-
-func (lc *LobbyController) MwRequireLobbyOwner(handleFunc echo.HandlerFunc) echo.HandlerFunc {
-	return func(c echo.Context) error {
-		lobby := c.Get("lobby").(*model.Lobby)
-		user := c.Get("user").(*model.User)
-		if lobby.CreatorID != user.ID {
-			return c.JSON(403, entity.ErrForbidden)
-		}
-		return handleFunc(c)
+	user := c.Get("user").(*model.User)
+	newLobby := &model.Lobby{
+		Name:           createLobby.Name,
+		CreatorID:      user.ID,
+		CreatedAt:      time.Now(),
+		State:          model.LobbyWaitingForPlayers,
+		Private:        createLobby.Private,
+		Joinable:       true,
+		CurrentPlayers: 1,
+		MaxPlayers:     4,
+		GameTypeID:     1,
 	}
+
+	err = lc.db.Create(newLobby).Error
+
+	if err != nil {
+		fmt.Println(err)
+		return c.JSON(500, entity.ErrDatabaseError)
+	}
+
+	newLobbyMember := &model.LobbyMember{
+		UserID:     *user.ID,
+		LobbyID:    *newLobby.ID,
+		MemberType: constant.MemberTypePlayer,
+	}
+
+	err = lc.db.Create(newLobbyMember).Error
+
+	if err != nil {
+		fmt.Println(err)
+		return c.JSON(500, entity.ErrDatabaseError)
+	}
+
+	// Send a notification of a new lobby for public lobbies
+	if !newLobby.Private {
+		_ = lc.ably.Channels.Get("lobby-list").Publish(context.Background(), "lobbyAdd", newLobby)
+	}
+
+	return c.JSON(201, newLobby)
 }
 
 func (lc *LobbyController) GetLobbyThumbnail(c echo.Context) error {
@@ -134,10 +147,7 @@ func (lc *LobbyController) DeleteMember(c echo.Context) error {
 		return c.JSON(403, entity.ErrForbidden)
 	}
 
-	lobbyMember := &model.LobbyMember{
-		UserID:  *user.ID,
-		LobbyID: *lobby.ID,
-	}
+	lobbyMember := c.Get("lobbyMember").(*model.LobbyMember)
 
 	err = lc.db.Delete(lobbyMember).Error
 	if err != nil {
@@ -157,14 +167,8 @@ func (lc *LobbyController) PatchMember(c echo.Context) error {
 		return c.JSON(400, entity.ErrInvalidInput)
 	}
 
-	lobby := c.Get("lobby").(*model.Lobby)
-	user := c.Get("user").(*model.User)
-	lobbyMember := model.LobbyMember{
-		UserID:     *user.ID,
-		LobbyID:    *lobby.ID,
-		MemberType: putMember.Type,
-	}
-
+	lobbyMember := c.Get("lobbyMember").(*model.LobbyMember)
+	lobbyMember.MemberType = putMember.Type
 	err = lc.db.Updates(&lobbyMember).Error
 
 	if err != nil {
@@ -172,11 +176,11 @@ func (lc *LobbyController) PatchMember(c echo.Context) error {
 		return c.JSON(500, err)
 	}
 
-	_ = lc.publishLobbyMessage(lobby.ID, "memberUpdate", lobbyMember)
+	_ = lc.publishLobbyMessage(&lobbyMember.LobbyID, "memberUpdate", lobbyMember)
 
 	return c.NoContent(204)
 }
 
 func (lc *LobbyController) publishLobbyMessage(lobby *uint32, name string, message interface{}) error {
-	return lc.ably.Channels.Get(fmt.Sprintf("lobby-%d", lobby)).Publish(context.Background(), name, message)
+	return lc.ably.Channels.Get(fmt.Sprintf("lobby-%d", *lobby)).Publish(context.Background(), name, message)
 }

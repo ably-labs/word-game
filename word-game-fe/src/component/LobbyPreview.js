@@ -1,4 +1,6 @@
 import {Button, Card, CardActionArea, CardActions, CardContent, CardMedia, Typography} from "@mui/material";
+import defAxios from "../Http";
+import { useNavigate } from "react-router-dom";
 
 
 const stateMap = {
@@ -9,11 +11,13 @@ const stateMap = {
 
 export default ({lobby})=>{
 
-    const joinLobby = async ()=>{
+    const navigate = useNavigate();
 
-    }
-
-    const spectateLobby = async ()=>{
+    const joinLobby = (type)=>{
+        return async ()=>{
+            let result = await defAxios.put(`lobby/${lobby.id}/member`, {type})
+            navigate(`/lobby/${lobby.id}`);
+        }
 
     }
 
@@ -38,10 +42,10 @@ export default ({lobby})=>{
             </CardContent>
         </CardActionArea>
         <CardActions>
-            <Button size="small" >
+            <Button size="small" onClick={joinLobby("spectator")}>
                 Spectate
             </Button>
-            <Button size="small" color="primary" disabled={!lobby.joinable}>
+            <Button size="small" color="primary" disabled={!lobby.joinable} onClick={joinLobby("player")}>
                 Join
             </Button>
         </CardActions>

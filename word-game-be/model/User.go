@@ -40,3 +40,12 @@ func (u *User) WebAuthnCredentials() []webauthn.Credential {
 func (u *User) Exists(db *gorm.DB) bool {
 	return db.Where(u).First(u).Error == nil
 }
+
+type DisplayUser struct {
+	ID   *uint32 `gorm:"primarykey" json:"id"`
+	Name string  `json:"name"`
+}
+
+func (du *DisplayUser) TableName() string {
+	return "users"
+}

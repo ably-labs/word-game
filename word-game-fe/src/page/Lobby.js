@@ -5,18 +5,13 @@ import "../css/lobby.css";
 import MemberList from "../component/MemberList";
 import {useParams} from "react-router-dom";
 
-const messages = [
-    {author: "peter", message: "Hello"},
-    {author: "system", message: "This is a system message."},
-    {author: "peter", message: "This message is really long and will probably wrap"},
-]
 
-export default ()=>{
+export default ({realtime, user})=>{
     const params = useParams();
-    console.log(params);
+    const lobbyId = params.id;
     return <div id="lobby">
-        <GameWindow/>
-        <Chat messages={messages}/>
-        <MemberList/>
+        <GameWindow realtime={realtime} lobbyId={lobbyId}/>
+        <Chat realtime={realtime} lobbyId={lobbyId}/>
+        <MemberList realtime={realtime} lobbyId={lobbyId}/>
     </div>
 }

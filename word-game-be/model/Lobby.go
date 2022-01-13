@@ -22,6 +22,7 @@ type Lobby struct {
 	MaxPlayers     uint8         `json:"maxPlayers"`
 	GameTypeID     uint32        `json:"-"`
 	GameType       GameType      `json:"gameType"`
-	Members        []LobbyMember `json:"members"`
-	Messages       []Message     `json:"messages"`
+	Members        []LobbyMember `json:"-"`
+	Messages       []Message     `json:"-"`
+	Creator        DisplayUser   `json:"creator" gorm:"foreignKey:id;references:creator_id"`
 }
