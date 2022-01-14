@@ -62,7 +62,7 @@ func RequireLobbyMember(handleFunc echo.HandlerFunc) echo.HandlerFunc {
 			return c.JSON(500, entity.ErrDatabaseError)
 		}
 
-		c.Set("lobbyMember", lobby)
+		c.Set("lobbyMember", &lobbyMember)
 
 		return handleFunc(c)
 	}
