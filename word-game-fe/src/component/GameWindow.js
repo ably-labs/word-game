@@ -8,6 +8,7 @@ import KeyboardDoubleArrowDownIcon from '@mui/icons-material/KeyboardDoubleArrow
 import ShuffleIcon from '@mui/icons-material/Shuffle';
 import SwapVertIcon from '@mui/icons-material/SwapVert';
 import {IconButton} from "@mui/material";
+import defAxios from "../Http";
 
 // Board layout for testing
 const layout =
@@ -42,6 +43,14 @@ const GAME_DECK_LENGTH = 9;
 class GameWindow extends React.Component {
 
     state = {
+        mainSize: {
+            width: 15,
+            height: 15,
+        },
+        deckSize: {
+            width: 9,
+            height: 1, // TODO: Deck width doesn't do anything yet
+        },
         boards: {
             main: [],
             deck: []
@@ -57,54 +66,60 @@ class GameWindow extends React.Component {
     }
 
     componentDidMount(){
-        this.constructBoard();
+        this.getDeck();
+        this.getBoard();
     }
 
-    // TODO: The board data will eventually come from the server, but for testing this is a layout
-    constructBoard(){
-        let main = Array(GAME_BOARD_WIDTH * GAME_BOARD_HEIGHT).fill({});
-        for(let i = 0; i < layout.length; i++){
-            // Create a copy of the object
-            main[i] = Object.create(tileTypes[layout[i]])
-        }
-        main[10].tile = {letter: "A", score: 1, draggable: true};
-        let deck = Array(GAME_DECK_LENGTH).fill(0).map(()=>({}))
-        deck[0].tile = {letter: "P", score: 1, draggable: true}
-        deck[1].tile = {letter: "E", score: 1, draggable: true}
-        deck[2].tile = {letter: "L", score: 1, draggable: true}
-        deck[3].tile = {letter: "P", score: 1, draggable: true}
+    async getDeck(){
+        const {data: {squares: deck, width, height}} = await defAxios.get(`game/${this.props.lobbyId}/deck`);
         this.setState({
-            boards: {main, deck}
-        });
+            deckSize: {width, height},
+            boards: {
+                main: this.state.boards.main,
+                deck
+            }
+        })
+    }
+
+
+    async getBoard(){
+        const {data: {squares: main, width, height}} = await defAxios.get(`game/${this.props.lobbyId}/board`);
+        this.setState({
+            mainSize: {width, height},
+            boards: {
+                main: main,
+                deck: this.state.boards.deck
+            }
+        })
+    }
+
+    renderBoard(width, height, board, className, source){
+        const rows = [];
+        for(let y = 0; y < height; y++){
+            let cols = [];
+            for(let x = 0; x < width; x++){
+                const i = (y*width)+x;
+                const square = board[i];
+                cols.push(this.drawSquare(square, i, source))
+            }
+            rows.push(<tr key={`board-${source}-${y}`}>{cols}</tr>)
+        }
+        return <table className={className}>
+            <tbody>
+            {rows}
+            </tbody>
+        </table>
     }
 
     render() {
-        const rows = [];
-        for(let y = 0; y < GAME_BOARD_HEIGHT; y++){
-            let cols = [];
-            for(let x = 0; x < GAME_BOARD_WIDTH; x++){
-                const i = (y*GAME_BOARD_WIDTH)+x;
-                const square = this.state.boards.main[i];
-                cols.push(this.drawSquare(square, i, "main"))
-            }
-            rows.push(<tr key={`main-row${y}`}>{cols}</tr>)
-        }
         return <div id="gameWindow">
-            <table className="board">
-                <tbody>
-                    {rows}
-                </tbody>
-            </table>
+            {this.renderBoard(this.state.mainSize.width, this.state.mainSize.height, this.state.boards.main, "board", "main")}
             <div id="boardControls">
                 <IconButton title="Recall" onClick={this.recallTiles}><KeyboardDoubleArrowDownIcon/></IconButton>
                 <IconButton title="Shuffle" onClick={this.shuffleTiles}><ShuffleIcon/></IconButton>
                 <IconButton title="Swap" onClick={this.swapTiles}><SwapVertIcon/></IconButton>
             </div>
-            <table className="deck">
-                <tbody>
-                    <tr>{this.state.boards.deck.map((e, i)=>this.drawSquare(e,i, "deck"))}</tr>
-                </tbody>
-            </table>
+            {this.renderBoard(this.state.deckSize.width, this.state.deckSize.height, this.state.boards.deck, "deck", "deck")}
         </div>
     }
 
