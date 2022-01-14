@@ -15,5 +15,7 @@ var (
 	ErrUnauthorised     = Error{Err: "Unauthorised"}
 	ErrInvalidLobby     = Error{Err: "Invalid Lobby ID"}
 	ErrLobbyNotFound    = Error{Err: "Lobby Not Found"}
+	ErrLobbyFull        = Error{Err: "Lobby is full"}
 	ErrLoggedIn         = Error{Err: "You must be logged out to use this endpoint"}
+	ErrSpectating       = Error{Err: "You must be an active participant in the game to use this endpoint"}
 )

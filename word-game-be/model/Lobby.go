@@ -1,6 +1,9 @@
 package model
 
-import "time"
+import (
+	"github.com/ably-labs/word-game/word-game-be/entity"
+	"time"
+)
 
 type LobbyState string
 
@@ -11,18 +14,20 @@ const (
 )
 
 type Lobby struct {
-	ID             *uint32       `gorm:"primarykey" json:"id"`
-	Name           string        `json:"name"`
-	CreatorID      *uint32       `json:"creatorId"`
-	CreatedAt      time.Time     `json:"createdAt"`
-	State          LobbyState    `json:"state"`
-	Private        bool          `json:"private"`
-	Joinable       bool          `json:"joinable"`
-	CurrentPlayers uint8         `json:"currentPlayers"`
-	MaxPlayers     uint8         `json:"maxPlayers"`
-	GameTypeID     uint32        `json:"-"`
-	GameType       GameType      `json:"gameType"`
-	Members        []LobbyMember `json:"-"`
-	Messages       []Message     `json:"-"`
-	Creator        DisplayUser   `json:"creator" gorm:"foreignKey:id;references:creator_id"`
+	ID             *uint32          `gorm:"primarykey" json:"id"`
+	Name           string           `json:"name"`
+	CreatorID      *uint32          `json:"creatorId"`
+	CreatedAt      time.Time        `json:"createdAt"`
+	State          LobbyState       `json:"state"`
+	Private        bool             `json:"private"`
+	Joinable       bool             `json:"joinable"`
+	CurrentPlayers uint8            `json:"currentPlayers"`
+	MaxPlayers     uint8            `json:"maxPlayers"`
+	GameTypeID     uint32           `json:"-"`
+	GameType       GameType         `json:"gameType"`
+	Members        []LobbyMember    `json:"-"`
+	Messages       []Message        `json:"-"`
+	Creator        DisplayUser      `json:"creator" gorm:"foreignKey:id;references:creator_id"`
+	Board          entity.SquareSet `json:"-"`
+	Bag            entity.SquareSet `json:"-"`
 }

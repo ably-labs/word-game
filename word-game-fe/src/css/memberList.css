@@ -3,3 +3,24 @@
     height: 50vh;
     border: 1px solid grey;
 }
+
+.activity {
+    text-transform: capitalize;
+}
+
+.activity:before {
+    content: " ";
+    border-radius: 100px;
+    display: inline-block;
+    width: 0.5vw;
+    height: 0.5vw;
+    margin-right:  5px;
+}
+
+.activity.online:before {
+    background: limegreen;
+}
+
+.activity.offline:before{
+    background: grey;
+}

@@ -43,18 +43,7 @@ const GAME_DECK_LENGTH = 9;
 class GameWindow extends React.Component {
 
     state = {
-        mainSize: {
-            width: 15,
-            height: 15,
-        },
-        deckSize: {
-            width: 9,
-            height: 1, // TODO: Deck width doesn't do anything yet
-        },
-        boards: {
-            main: [],
-            deck: []
-        },
+        boards: {},
     }
 
     constructor(props){
@@ -66,45 +55,29 @@ class GameWindow extends React.Component {
     }
 
     componentDidMount(){
-        this.getDeck();
-        this.getBoard();
+        this.getBoards();
     }
 
-    async getDeck(){
-        const {data: {squares: deck, width, height}} = await defAxios.get(`game/${this.props.lobbyId}/deck`);
-        this.setState({
-            deckSize: {width, height},
-            boards: {
-                main: this.state.boards.main,
-                deck
-            }
-        })
+    async getBoards(){
+        const {data: boards} = await defAxios.get(`game/${this.props.lobbyId}/boards`);
+        this.setState({boards})
     }
 
 
-    async getBoard(){
-        const {data: {squares: main, width, height}} = await defAxios.get(`game/${this.props.lobbyId}/board`);
-        this.setState({
-            mainSize: {width, height},
-            boards: {
-                main: main,
-                deck: this.state.boards.deck
-            }
-        })
-    }
-
-    renderBoard(width, height, board, className, source){
+    renderBoard(name){
+        const board = this.state.boards[name];
+        if(!board)return <div>Board {name} not found</div>
         const rows = [];
-        for(let y = 0; y < height; y++){
+        for(let y = 0; y < board.height; y++){
             let cols = [];
-            for(let x = 0; x < width; x++){
-                const i = (y*width)+x;
-                const square = board[i];
-                cols.push(this.drawSquare(square, i, source))
+            for(let x = 0; x < board.width; x++){
+                const i = (y*board.width)+x;
+                const square = board.squares[i];
+                cols.push(this.drawSquare(square, i, name))
             }
-            rows.push(<tr key={`board-${source}-${y}`}>{cols}</tr>)
+            rows.push(<tr key={`board-${name}-${y}`}>{cols}</tr>)
         }
-        return <table className={className}>
+        return <table className={`board ${name}`}>
             <tbody>
             {rows}
             </tbody>
@@ -113,13 +86,13 @@ class GameWindow extends React.Component {
 
     render() {
         return <div id="gameWindow">
-            {this.renderBoard(this.state.mainSize.width, this.state.mainSize.height, this.state.boards.main, "board", "main")}
+            {this.renderBoard("main")}
             <div id="boardControls">
                 <IconButton title="Recall" onClick={this.recallTiles}><KeyboardDoubleArrowDownIcon/></IconButton>
                 <IconButton title="Shuffle" onClick={this.shuffleTiles}><ShuffleIcon/></IconButton>
                 <IconButton title="Swap" onClick={this.swapTiles}><SwapVertIcon/></IconButton>
             </div>
-            {this.renderBoard(this.state.deckSize.width, this.state.deckSize.height, this.state.boards.deck, "deck", "deck")}
+            {this.renderBoard("deck")}
         </div>
     }
 

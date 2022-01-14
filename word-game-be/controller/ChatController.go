@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"context"
 	"fmt"
 	"github.com/ably-labs/word-game/word-game-be/entity"
 	"github.com/ably-labs/word-game/word-game-be/middleware"
@@ -55,7 +54,7 @@ func (cc *ChatController) PostChatMessage(c echo.Context) error {
 		return c.JSON(500, entity.ErrDatabaseError)
 	}
 
-	err = cc.publishChatMessage(lobby.ID, "message", entity.ChatSent{
+	err = publishLobbyMessage(cc.ably, lobby.ID, "message", entity.ChatSent{
 		Message: chatInput.Message,
 		Author:  user.Name,
 	})
@@ -82,8 +81,4 @@ func (cc *ChatController) GetChatHistory(c echo.Context) error {
 	}
 
 	return c.JSON(200, cleanedMessages)
-}
-
-func (cc *ChatController) publishChatMessage(lobby *uint32, name string, message interface{}) error {
-	return cc.ably.Channels.Get(fmt.Sprintf("chat-%d", *lobby)).Publish(context.Background(), name, message)
 }

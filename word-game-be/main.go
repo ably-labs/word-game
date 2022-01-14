@@ -62,6 +62,7 @@ func main() {
 	controller.NewAuthController(e.Group("auth"), db, ablyClient)
 	controller.NewLobbyController(e.Group("lobby"), db, ablyClient)
 	controller.NewChatController(e.Group("chat"), db, ablyClient)
+	controller.NewGameController(e.Group("game"), db, ablyClient)
 
 	// Start the web server
 	e.Logger.Fatal(e.Start(":3001"))

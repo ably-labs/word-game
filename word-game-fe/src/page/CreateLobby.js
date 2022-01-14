@@ -1,6 +1,7 @@
 import {Button, Checkbox, Container, FormControlLabel, FormGroup, TextField, Typography} from "@mui/material";
 import {useState} from "react";
 import defAxios from "../Http";
+import {useNavigate} from "react-router-dom";
 
 export default ()=>{
 
@@ -9,12 +10,14 @@ export default ()=>{
     const [isPrivate, setPrivate] = useState(false)
     const [error, setError] = useState(false);
     const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
 
     const createLobby = async ()=>{
         setLoading(true);
         let result = await defAxios.post("/lobby", {
             name, private: isPrivate
         });
+        navigate(`/lobby/${result.data.id}`);
         console.log(result);
     }
 

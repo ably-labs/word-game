@@ -32,6 +32,7 @@ func NewLobbyController(e *echo.Group, db *gorm.DB, ably *ably.Realtime) *LobbyC
 	lobbyGroup := e.Group("/:id", middleware.RequireAuthorisation, middleware.ValidateLobby)
 	lobbyGroup.GET("/thumbnail", lc.GetLobbyThumbnail)
 	lobbyGroup.PUT("/member", lc.PutMember)
+	lobbyGroup.GET("/member", lc.GetMembers, middleware.RequireLobbyMember)
 	lobbyGroup.DELETE("/member", lc.DeleteMember, middleware.RequireLobbyMember)
 	lobbyGroup.PATCH("/member", lc.PatchMember, middleware.RequireLobbyMember)
 
@@ -51,6 +52,8 @@ func (lc *LobbyController) PostLobby(c echo.Context) error {
 		return c.JSON(400, entity.ErrInvalidInput)
 	}
 	user := c.Get("user").(*model.User)
+	tileBag := newTileBag()
+	ownerDeck := takeFromBag(7, &tileBag)
 	newLobby := &model.Lobby{
 		Name:           createLobby.Name,
 		CreatorID:      user.ID,
@@ -61,6 +64,8 @@ func (lc *LobbyController) PostLobby(c echo.Context) error {
 		CurrentPlayers: 1,
 		MaxPlayers:     4,
 		GameTypeID:     1,
+		Board:          newBoard(),
+		Bag:            tileBag,
 	}
 
 	err = lc.db.Create(newLobby).Error
@@ -74,6 +79,11 @@ func (lc *LobbyController) PostLobby(c echo.Context) error {
 		UserID:     *user.ID,
 		LobbyID:    *newLobby.ID,
 		MemberType: constant.MemberTypePlayer,
+		Deck: entity.SquareSet{
+			Squares: &ownerDeck,
+			Width:   9,
+			Height:  1,
+		},
 	}
 
 	err = lc.db.Create(newLobbyMember).Error
@@ -111,14 +121,29 @@ func (lc *LobbyController) PutMember(c echo.Context) error {
 		return c.JSON(404, entity.ErrLobbyNotFound)
 	}
 
-	if !lobby.Joinable && putUser.Type == constant.MemberTypePlayer {
-		return c.JSON(403, entity.ErrForbidden)
+	if putUser.Type == constant.MemberTypePlayer {
+		if !lobby.Joinable {
+			return c.JSON(403, entity.ErrForbidden)
+		}
+
+		if lobby.CurrentPlayers >= lobby.MaxPlayers {
+			return c.JSON(403, entity.ErrLobbyFull)
+		}
 	}
 
 	lobbyMember := &model.LobbyMember{
 		UserID:     *user.ID,
 		LobbyID:    *lobby.ID,
 		MemberType: putUser.Type,
+	}
+
+	if lobbyMember.MemberType == constant.MemberTypePlayer {
+		newDeck := takeFromBag(7, &lobby.Bag)
+		lobbyMember.Deck = entity.SquareSet{
+			Squares: &newDeck,
+			Width:   9,
+			Height:  1,
+		}
 	}
 
 	err = lc.db.Save(lobbyMember).Error
@@ -128,7 +153,16 @@ func (lc *LobbyController) PutMember(c echo.Context) error {
 		return c.JSON(500, entity.ErrDatabaseError)
 	}
 
-	_ = lc.publishLobbyMessage(lobby.ID, "memberAdd", lobbyMember)
+	if lobbyMember.MemberType == constant.MemberTypePlayer {
+		lobby.CurrentPlayers++
+		lc.db.Save(lobby)
+	}
+
+	_ = publishLobbyMessage(lc.ably, lobby.ID, "message", entity.ChatSent{
+		Message: fmt.Sprintf("%s joined the game", user.Name),
+		Author:  "system",
+	})
+	_ = publishLobbyMessage(lc.ably, lobby.ID, "memberAdd", lobbyMember)
 
 	return c.NoContent(204)
 }
@@ -155,7 +189,16 @@ func (lc *LobbyController) DeleteMember(c echo.Context) error {
 		return c.JSON(500, entity.ErrDatabaseError)
 	}
 
-	_ = lc.publishLobbyMessage(lobby.ID, "memberRemove", lobbyMember)
+	if lobbyMember.MemberType == constant.MemberTypePlayer {
+		lobby.CurrentPlayers--
+		lc.db.Save(lobby)
+	}
+
+	_ = publishLobbyMessage(lc.ably, lobby.ID, "message", entity.ChatSent{
+		Message: fmt.Sprintf("%s left the game", user.Name), // TODO: This shows the remover's name if another user was kicked
+		Author:  "system",
+	})
+	_ = publishLobbyMessage(lc.ably, lobby.ID, "memberRemove", lobbyMember)
 
 	return c.NoContent(204)
 }
@@ -176,11 +219,24 @@ func (lc *LobbyController) PatchMember(c echo.Context) error {
 		return c.JSON(500, err)
 	}
 
-	_ = lc.publishLobbyMessage(&lobbyMember.LobbyID, "memberUpdate", lobbyMember)
+	// TODO Updating a member to a player doesn't change the player count
+
+	_ = publishLobbyMessage(lc.ably, &lobbyMember.LobbyID, "memberUpdate", lobbyMember)
 
 	return c.NoContent(204)
 }
 
-func (lc *LobbyController) publishLobbyMessage(lobby *uint32, name string, message interface{}) error {
-	return lc.ably.Channels.Get(fmt.Sprintf("lobby-%d", *lobby)).Publish(context.Background(), name, message)
+func (lc *LobbyController) GetMembers(c echo.Context) error {
+	var members []model.LobbyMember
+	lobby := c.Get("lobby").(*model.Lobby)
+	err := lc.db.Preload("User").Where("lobby_id = ?", lobby.ID).Find(&members).Error
+	if err != nil {
+		return c.JSON(500, entity.ErrDatabaseError)
+	}
+
+	return c.JSON(200, members)
+}
+
+func publishLobbyMessage(client *ably.Realtime, lobby *uint32, name string, message interface{}) error {
+	return client.Channels.Get(fmt.Sprintf("lobby-%d", *lobby)).Publish(context.Background(), name, message)
 }

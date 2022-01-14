@@ -24,8 +24,7 @@ export default class Chat extends React.Component {
     async componentDidMount(){
         let {data: messages} = await defAxios.get(`chat/${this.props.lobbyId}`)
         this.setState({messages}, ()=>this.anchor.current.scrollIntoView());
-        console.log(this.props.lobbyId);
-        const channel = this.props.realtime.channels.get(`chat-${this.props.lobbyId}`);
+        const channel = this.props.realtime.channels.get(`lobby-${this.props.lobbyId}`);
         console.log("Subscribing to channel");
         channel.subscribe(this.onMessage);
     }
@@ -48,7 +47,7 @@ export default class Chat extends React.Component {
     render(){
         return <div id="chat">
             <div id="chatHistory">
-                {this.state.messages.map((m)=><ChatMessage {...m}/>)}
+                {this.state.messages.map((m,i)=><ChatMessage {...m} key={`message-${i}`}/>)}
                 <div ref={this.anchor}/>
             </div>
             <div id="chatControls">
