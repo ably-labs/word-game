@@ -24,6 +24,7 @@ type Lobby struct {
 	CurrentPlayers uint8            `json:"currentPlayers"`
 	MaxPlayers     uint8            `json:"maxPlayers"`
 	GameTypeID     uint32           `json:"-"`
+	PlayerTurnID   *uint32          `json:"playerTurnId"`
 	GameType       GameType         `json:"gameType"`
 	Members        []LobbyMember    `json:"-"`
 	Messages       []Message        `json:"-"`

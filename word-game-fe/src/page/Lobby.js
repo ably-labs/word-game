@@ -10,7 +10,7 @@ export default ({realtime, user})=>{
     const params = useParams();
     const lobbyId = params.id;
     return <div id="lobby">
-        <GameWindow realtime={realtime} lobbyId={lobbyId}/>
+        <GameWindow realtime={realtime} lobbyId={lobbyId} user={user}/>
         <Chat realtime={realtime} lobbyId={lobbyId}/>
         <MemberList realtime={realtime} lobbyId={lobbyId}/>
     </div>

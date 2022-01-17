@@ -7,6 +7,8 @@ import {List, ListItem, ListItemText} from "@mui/material";
 export default class MemberList extends React.Component {
 
 
+
+    channel;
     state = {
         members: []
     }
@@ -14,10 +16,10 @@ export default class MemberList extends React.Component {
     async componentDidMount(){
         const {data: members} = await defAxios.get(`lobby/${this.props.lobbyId}/member`)
         this.setState({members});
-        const channel = this.props.realtime.channels.get(`lobby-${this.props.lobbyId}`);
-        channel.presence.enter();
-        channel.presence.get((err, members)=>{
-            console.log(members);
+        this.channel = this.props.realtime.channels.get(`lobby-${this.props.lobbyId}`);
+        this.channel.presence.enter();
+        this.channel.presence.get((err, members)=>{
+            console.log("Get members", err, members, this.state.members);
             let enrichedMembers = this.state.members.map((member)=>{
                 // noinspection EqualityComparisonWithCoercionJS
                 let presence = members.find((m)=>m.clientId == member.id)
@@ -27,16 +29,16 @@ export default class MemberList extends React.Component {
             this.setState({members: enrichedMembers})
         });
 
-        channel.presence.subscribe("enter", this.updateMemberState("online"));
-        channel.presence.subscribe("leave", this.updateMemberState("offline"));
+        this.channel.presence.subscribe("enter", this.updateMemberState("online"));
+        this.channel.presence.subscribe("leave", this.updateMemberState("offline"));
 
-        channel.subscribe(this.onMessage)
+        // TODO memberJoin/memberLeave events
+
     }
 
-    onMessage(message){
-        switch(message.name){
-
-        }
+    componentWillUnmount() {
+        this.channel.presence.unsubscribe("enter", this.updateMemberState("online"));
+        this.channel.presence.unsubscribe("leave", this.updateMemberState("offline"));
     }
 
     updateMemberState(state){

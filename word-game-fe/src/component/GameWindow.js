@@ -7,43 +7,17 @@ import '../css/board.css';
 import KeyboardDoubleArrowDownIcon from '@mui/icons-material/KeyboardDoubleArrowDown';
 import ShuffleIcon from '@mui/icons-material/Shuffle';
 import SwapVertIcon from '@mui/icons-material/SwapVert';
-import {IconButton} from "@mui/material";
+import {Button, IconButton} from "@mui/material";
 import defAxios from "../Http";
 
-// Board layout for testing
-const layout =
-    "T--D---T---D--T" +
-    "-W---L---L---W-" +
-    "--W---D-D---W--" +
-    "D--W---D---W--D" +
-    "----W-----W----" +
-    "-L---L---L---L-" +
-    "--D---D-D---D--" +
-    "T--D---S---D--T" +
-    "--D---D-D---D--" +
-    "-L---L---L---L-" +
-    "----W-----W----" +
-    "D--W---D---W--D" +
-    "--W---D-D---W--" +
-    "-W---L---L---W-" +
-    "T--W---T---W--T"
-
-const tileTypes = {
-    "-": {},
-    "T": {bonus: {text: "TRIPLE WORD", type: "triple-word"}},
-    "D": {bonus: {text: "DOUBLE LETTER", type: "double-letter"}},
-    "W": {bonus: {text: "DOUBLE WORD", type: "double-word"}},
-    "L": {bonus: {text: "TRIPLE LETTER", type: "triple-letter"}},
-    "S": {bonus: {text: "START", type: "double-word"}}
-}
-const GAME_BOARD_WIDTH = 15;
-const GAME_BOARD_HEIGHT = 15;
-const GAME_DECK_LENGTH = 9;
 
 class GameWindow extends React.Component {
 
+
+    channel;
     state = {
         boards: {},
+        lobby: {},
     }
 
     constructor(props){
@@ -52,17 +26,40 @@ class GameWindow extends React.Component {
         this.recallTiles = this.recallTiles.bind(this);
         this.shuffleTiles = this.shuffleTiles.bind(this);
         this.swapTiles = this.swapTiles.bind(this);
+        this.onMessage = this.onMessage.bind(this);
     }
 
-    componentDidMount(){
-        this.getBoards();
-    }
-
-    async getBoards(){
+    async componentDidMount(){
+        const {data: lobby} = await defAxios.get(`lobby/${this.props.lobbyId}`);
         const {data: boards} = await defAxios.get(`game/${this.props.lobbyId}/boards`);
-        this.setState({boards})
+        this.setState({boards, lobby})
+        this.channel = this.props.realtime.channels.get(`lobby-${this.props.lobbyId}`);
+        this.channel.subscribe(this.onMessage)
     }
 
+    componentWillUnmount() {
+        this.channel.unsubscribe(this.onMessage);
+    }
+
+    onMessage(message){
+        switch(message.name){
+            case "moveTile":
+                const {move, tile} = message.data;
+                console.log(move, tile);
+                this.setState((state)=>{
+                    if(move.to !== "deck")
+                        state.boards[move.to].squares[move.toIndex].tile = tile;
+                    if(move.from !== "deck")
+                        state.boards[move.from].squares[move.fromIndex].tile = null;
+                    return {boards: state.boards}
+                })
+                break;
+        }
+    }
+
+    isTurn(){
+        return this.state.lobby.playerTurnId !== this.props.user.id
+    }
 
     renderBoard(name){
         const board = this.state.boards[name];
@@ -88,6 +85,10 @@ class GameWindow extends React.Component {
         return <div id="gameWindow">
             {this.renderBoard("main")}
             <div id="boardControls">
+                <div>
+                    <Button disabled={this.isTurn()}>Play</Button>
+                    <Button disabled={this.isTurn()}>Pass</Button>
+                </div>
                 <IconButton title="Recall" onClick={this.recallTiles}><KeyboardDoubleArrowDownIcon/></IconButton>
                 <IconButton title="Shuffle" onClick={this.shuffleTiles}><ShuffleIcon/></IconButton>
                 <IconButton title="Swap" onClick={this.swapTiles}><SwapVertIcon/></IconButton>
@@ -98,19 +99,23 @@ class GameWindow extends React.Component {
 
     drawSquare(square, i, source){
         const key = `${source}${i}`
-        if(square?.tile)
+        if(square?.tile) {
             return <LetterTile {...square.tile} index={i} source={source} key={key}/>
+        }
         else if(square?.bonus)
             return <BonusTile {...square.bonus} index={i} onTileDropped={this.handleTileDrop} source={source} key={key}/>
         else
             return <EmptyTile index={i} onTileDropped={this.handleTileDrop} source={source} key={key}/>
     }
 
-    handleTileDrop(from, fromIndex, to, toIndex){
+    async handleTileDrop(from, fromIndex, to, toIndex){
+        if(!this.isTurn() && (from === "board" || to === "board"))return;
         console.log(`Moving ${from}#${fromIndex} -> ${to}#${toIndex}`);
+        let result = await defAxios.patch(`game/${this.props.lobbyId}/boards`, {from, fromIndex, to, toIndex})
+        if(result.data.err)return console.log("Couldn't move tile", result.data.err);
         this.setState((state)=>{
-            state.boards[to][toIndex].tile = state.boards[from][fromIndex].tile
-            state.boards[from][fromIndex].tile = null;
+            state.boards[to].squares[toIndex].tile = state.boards[from].squares[fromIndex].tile
+            state.boards[from].squares[fromIndex].tile = null;
             return {boards: state.boards}
         })
     }
@@ -119,12 +124,12 @@ class GameWindow extends React.Component {
     recallTiles(){
         this.setState((state)=>{
             for(let i = 0; i < state.boards.main.length; i++){
-                const tile = state.boards.main[i].tile;
+                const tile = state.boards.main.squares[i].tile;
                 if(!tile || !tile.draggable)continue;
                 // Find the first empty square
                 const newIndex = state.boards.deck.findIndex((s)=>!s.tile);
-                state.boards.deck[newIndex].tile = state.boards.main[i].tile;
-                state.boards.main[i].tile = null;
+                state.boards.deck.squares[newIndex].tile = state.boards.main.squares[i].tile;
+                state.boards.main.squares[i].tile = null;
             }
             return {boards: state.boards};
         })
@@ -133,9 +138,18 @@ class GameWindow extends React.Component {
     shuffleTiles(){
         this.setState((state)=>{
             // This shuffle does not take into account blank tiles, but it will do for now
-            state.boards.deck.sort(()=>Math.random() > 0.5 ? 1 : -1)
+            state.boards.deck.squares.sort(()=>Math.random() > 0.5 ? 1 : -1)
             return {boards: state.boards}
         })
+    }
+
+    play(){
+        defAxios.post(`game/${this.props.lobbyId}/boards`);
+    }
+
+    pass(){
+        this.recallTiles();
+        this.play();
     }
 
     swapTiles(){

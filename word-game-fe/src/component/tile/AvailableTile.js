@@ -23,7 +23,7 @@ export default ({index, children, style, className = "tile empty", onTileDropped
 
     const onDrop = (ev)=>{
         if(!ev.dataTransfer.getData("source"))return;
-        onTileDropped(ev.dataTransfer.getData("source"), ev.dataTransfer.getData("index"), source, index)
+        onTileDropped(ev.dataTransfer.getData("source"), parseInt(ev.dataTransfer.getData("index")), source, index)
         ev.preventDefault();
     }
 
@@ -34,6 +34,7 @@ export default ({index, children, style, className = "tile empty", onTileDropped
                onDrop={onDrop}
                data-index={index}
                style={style}>
-        {children}
+        {index}
+        {/*{children}*/}
     </td>;
 }

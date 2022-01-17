@@ -7,6 +7,7 @@ import (
 	"github.com/ably-labs/word-game/word-game-be/entity"
 	"github.com/ably-labs/word-game/word-game-be/middleware"
 	"github.com/ably-labs/word-game/word-game-be/model"
+	"github.com/ably-labs/word-game/word-game-be/util"
 	"github.com/ably/ably-go/ably"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
@@ -30,6 +31,7 @@ func NewLobbyController(e *echo.Group, db *gorm.DB, ably *ably.Realtime) *LobbyC
 
 	// Endpoints which require a valid lobby
 	lobbyGroup := e.Group("/:id", middleware.RequireAuthorisation, middleware.ValidateLobby)
+	lobbyGroup.GET("", lc.GetLobby)
 	lobbyGroup.GET("/thumbnail", lc.GetLobbyThumbnail)
 	lobbyGroup.PUT("/member", lc.PutMember)
 	lobbyGroup.GET("/member", lc.GetMembers, middleware.RequireLobbyMember)
@@ -45,6 +47,11 @@ func (lc *LobbyController) GetLobbies(c echo.Context) error {
 	return c.JSON(200, lobbies)
 }
 
+func (lc *LobbyController) GetLobby(c echo.Context) error {
+	// TODO: Private lobbies should require membership
+	return c.JSON(200, c.Get("lobby"))
+}
+
 func (lc *LobbyController) PostLobby(c echo.Context) error {
 	createLobby := entity.CreateLobby{}
 	err := c.Bind(&createLobby)
@@ -52,8 +59,8 @@ func (lc *LobbyController) PostLobby(c echo.Context) error {
 		return c.JSON(400, entity.ErrInvalidInput)
 	}
 	user := c.Get("user").(*model.User)
-	tileBag := newTileBag()
-	ownerDeck := takeFromBag(7, &tileBag)
+	tileBag := util.NewTileBag()
+	ownerDeck := util.TakeFromBag(7, &tileBag)
 	newLobby := &model.Lobby{
 		Name:           createLobby.Name,
 		CreatorID:      user.ID,
@@ -64,7 +71,8 @@ func (lc *LobbyController) PostLobby(c echo.Context) error {
 		CurrentPlayers: 1,
 		MaxPlayers:     4,
 		GameTypeID:     1,
-		Board:          newBoard(),
+		PlayerTurnID:   user.ID,
+		Board:          util.NewBoard(),
 		Bag:            tileBag,
 	}
 
@@ -138,7 +146,7 @@ func (lc *LobbyController) PutMember(c echo.Context) error {
 	}
 
 	if lobbyMember.MemberType == constant.MemberTypePlayer {
-		newDeck := takeFromBag(7, &lobby.Bag)
+		newDeck := util.TakeFromBag(7, &lobby.Bag)
 		lobbyMember.Deck = entity.SquareSet{
 			Squares: &newDeck,
 			Width:   9,
