@@ -34,7 +34,6 @@ export default ({index, children, style, className = "tile empty", onTileDropped
                onDrop={onDrop}
                data-index={index}
                style={style}>
-        {index}
-        {/*{children}*/}
+        {children}
     </td>;
 }
