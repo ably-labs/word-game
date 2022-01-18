@@ -27,6 +27,8 @@ class GameWindow extends React.Component {
         this.shuffleTiles = this.shuffleTiles.bind(this);
         this.swapTiles = this.swapTiles.bind(this);
         this.onMessage = this.onMessage.bind(this);
+        this.play = this.play.bind(this);
+        this.pass = this.pass.bind(this);
     }
 
     async componentDidMount(){
@@ -86,8 +88,8 @@ class GameWindow extends React.Component {
             {this.renderBoard("main")}
             <div id="boardControls">
                 <div>
-                    <Button disabled={this.isTurn()}>Play</Button>
-                    <Button disabled={this.isTurn()}>Pass</Button>
+                    <Button disabled={this.isTurn()} onClick={this.play}>Play</Button>
+                    <Button disabled={this.isTurn()} onClick={this.pass}>Pass</Button>
                 </div>
                 <IconButton title="Recall" onClick={this.recallTiles}><KeyboardDoubleArrowDownIcon/></IconButton>
                 <IconButton title="Shuffle" onClick={this.shuffleTiles}><ShuffleIcon/></IconButton>
@@ -143,8 +145,9 @@ class GameWindow extends React.Component {
         })
     }
 
-    play(){
-        defAxios.post(`game/${this.props.lobbyId}/boards`);
+    async play(){
+       let result = await defAxios.post(`game/${this.props.lobbyId}/boards`);
+       console.log(result);
     }
 
     pass(){

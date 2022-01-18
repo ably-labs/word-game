@@ -20,4 +20,5 @@ var (
 	ErrSpectating       = Error{Err: "You must be an active participant in the game to use this endpoint"}
 	ErrNotYourTurn      = Error{Err: "It is not currently your turn"}
 	ErrTileOccupied     = Error{Err: "Tile is already occupied"}
+	ErrInvalidPlay      = Error{Err: "Invalid tile placement"}
 )

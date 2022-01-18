@@ -13,4 +13,5 @@ type LobbyMember struct {
 	User       DisplayUser         `json:"user"`
 	Deck       entity.SquareSet    `json:"-"`
 	JoinedAt   time.Time           `gorm:"default:CURRENT_TIMESTAMP" json:"joined"`
+	Score      int                 `json:"score" gorm:"default:0"`
 }

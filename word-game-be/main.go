@@ -32,6 +32,16 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	// Save the standard type
+	standardType := model.GameType{
+		ID:   1,
+		Name: "Standard",
+	}
+	err = db.Save(&standardType).Error
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	ablyClient := initAbly()
 
 	// Create the web server and routes

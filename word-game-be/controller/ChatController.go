@@ -5,6 +5,7 @@ import (
 	"github.com/ably-labs/word-game/word-game-be/entity"
 	"github.com/ably-labs/word-game/word-game-be/middleware"
 	"github.com/ably-labs/word-game/word-game-be/model"
+	"github.com/ably-labs/word-game/word-game-be/util"
 	"github.com/ably/ably-go/ably"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
@@ -54,7 +55,7 @@ func (cc *ChatController) PostChatMessage(c echo.Context) error {
 		return c.JSON(500, entity.ErrDatabaseError)
 	}
 
-	err = publishLobbyMessage(cc.ably, lobby.ID, "message", entity.ChatSent{
+	err = util.PublishLobbyMessage(cc.ably, lobby.ID, "message", entity.ChatSent{
 		Message: chatInput.Message,
 		Author:  user.Name,
 	})

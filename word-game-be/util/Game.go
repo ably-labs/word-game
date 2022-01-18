@@ -1,7 +1,6 @@
 package util
 
 import (
-	_ "embed"
 	"fmt"
 	"github.com/ably-labs/word-game/word-game-be/entity"
 	"math"
@@ -9,10 +8,6 @@ import (
 	"strings"
 	"time"
 )
-
-//go:embed words.txt
-var wordList string
-var words = strings.Split(wordList, "\n")
 
 // TODO: All of these should be configurable, but in the interests of scope I'm hardcoding them
 
@@ -90,10 +85,11 @@ func NewBoardFromLayout(layout string, width int, height int) entity.SquareSet {
 			board[i] = square
 		} else {
 			letter := string(char)
+			upperLetter := strings.ToUpper(letter)
 			board[i] = entity.Square{Tile: &entity.Tile{
-				Letter:    letter,
-				Score:     score[letter],
-				Draggable: false,
+				Letter:    upperLetter,
+				Score:     score[upperLetter],
+				Draggable: letter != upperLetter,
 			}}
 		}
 	}
@@ -129,36 +125,117 @@ func GetPlacedTileIndices(squareSet entity.SquareSet) []int {
 	return indices
 }
 
-// ValidatePlacement validates that the tiles are placed in a valid way (regardless of if it's a valid word)
-//func ValidatePlacement(squareSet entity.SquareSet) bool {
-//	squares := *squareSet.Squares
-//	indices := GetPlacedTileIndices(squareSet)
-//	seenCount := 0
-//	startIndex := 0
-//
-//	for i := indices[0]; i > 0; i++ {
-//		if squares[i].Tile == nil {
-//			startIndex = i + 1
-//			break
-//		}
-//	}
-//
-//	return true
-//}
+func ValidateBoard(squareSet entity.SquareSet) int {
+
+	newWords := GetNewWords(squareSet)
+
+	if len(newWords) == 0 {
+		// Invalid placement or no tiles placed
+		return 0
+	}
+
+	totalScore := 0
+	for _, word := range newWords {
+		constructedWord := ""
+		score := 0
+		multiplier := 1
+		for _, square := range word {
+			constructedWord += square.Tile.Letter
+			score += GetSquareScore(*square)
+			multiplier += GetSquareWordMultiplier(*square)
+		}
+		if !IsValidWord(constructedWord) {
+			fmt.Println("Invalid word: ", constructedWord)
+			return 0
+		}
+		fmt.Println(constructedWord, score, multiplier)
+		totalScore += score * multiplier
+	}
+	return totalScore
+}
+
+func GetNewWords(squareSet entity.SquareSet) [][]*entity.Square {
+	indices := GetPlacedTileIndices(squareSet)
+
+	fmt.Println("ind 0 row start", GetRowStart(squareSet, indices[0]))
+	fmt.Println("ind 1 row start", GetRowStart(squareSet, indices[1]))
+	// If the first and second tiles are on the same row, this must be a horizontal word
+	isHoz := GetRowStart(squareSet, indices[0]) == GetRowStart(squareSet, indices[1])
+
+	fmt.Println("isHoz", isHoz)
+
+	originalWord := GetSquaresForWord(squareSet, indices[0], isHoz)
+
+	// Check every single draggable tile is inside the original word
+	seenCount := 0
+	for _, square := range originalWord {
+		if square.Tile.Draggable {
+			seenCount++
+		}
+	}
+
+	// If there are less draggable tiles inside the original word, the placement is invalid
+	if seenCount < len(indices) {
+		return [][]*entity.Square{}
+	}
+
+	words := [][]*entity.Square{
+		originalWord,
+	}
+
+	// Collect the new word boundaries for each row
+	for _, index := range indices {
+		wordSquares := GetSquaresForWord(squareSet, index, !isHoz)
+		if len(wordSquares) > 1 {
+			words = append(words, wordSquares)
+		}
+	}
+
+	return words
+}
+
+func GetSquaresForWord(squareSet entity.SquareSet, index int, isHoz bool) []*entity.Square {
+	start, end, interval := 0, 0, 0
+	if isHoz {
+		start, end = GetWordBoundsHoz(squareSet, index)
+		interval = 1
+	} else {
+		start, end = GetWordBoundsVert(squareSet, index)
+		interval = squareSet.Width
+	}
+	wordSquares := make([]*entity.Square, 0)
+
+	for i := start; i <= end; i += interval {
+		wordSquares = append(wordSquares, &(*squareSet.Squares)[i])
+	}
+	return wordSquares
+}
+
+func GetSquaresWithinBounds(squareSet entity.SquareSet, start int, end int, hoz bool) []*entity.Square {
+	wordSquares := make([]*entity.Square, 0)
+	interval := 1
+	if !hoz {
+		interval = squareSet.Width
+	}
+	for i := start; i <= end; i += interval {
+		wordSquares = append(wordSquares, &(*squareSet.Squares)[i])
+	}
+
+	return wordSquares
+}
 
 func GetWordBoundsHoz(squareSet entity.SquareSet, target int) (int, int) {
 	squares := *squareSet.Squares
 
 	// Get the start and ends of this row
-	rowStart := target - (target % squareSet.Width)
-	rowEnd := target + (squareSet.Width - 1 - (target % squareSet.Width))
+	rowStart := GetRowStart(squareSet, target)
+	rowEnd := GetRowEnd(squareSet, target)
 
 	start := rowStart
 	end := rowEnd
 
 	// walk backwards through the board until we run out of placed tiles on that row
 	for i := target; i > rowStart; i-- {
-		fmt.Println("walkback", i, squares[i].Tile)
 		if squares[i].Tile == nil {
 			start = i + 1
 			break
@@ -167,7 +244,6 @@ func GetWordBoundsHoz(squareSet entity.SquareSet, target int) (int, int) {
 
 	// walk forwards in the same manner
 	for i := target; i <= rowEnd; i++ {
-		fmt.Println("walk forward", i, squares[i].Tile)
 		if squares[i].Tile == nil {
 			end = i - 1
 			break
@@ -178,39 +254,89 @@ func GetWordBoundsHoz(squareSet entity.SquareSet, target int) (int, int) {
 }
 
 func GetWordBoundsVert(squareSet entity.SquareSet, target int) (int, int) {
-	fmt.Println("Target", target)
 	squares := *squareSet.Squares
 
-	// Get the start and ends of this row
-	rowNum := int(math.Floor(float64(target / squareSet.Width)))
-	fmt.Println("rowNum", rowNum)
-	colStart := target - (squareSet.Width * rowNum)
-	colEnd := target + squareSet.Width*(squareSet.Height-rowNum-1)
-
-	fmt.Println("colStart colEnd", colStart, colEnd)
+	colStart := GetColStart(squareSet, target)
+	colEnd := GetColEnd(squareSet, target)
 
 	start := colStart
 	end := colEnd
 
 	for i := target; i > colStart; i -= squareSet.Width {
-		fmt.Println("walkback", i, squares[i].Tile)
+		fmt.Println("WBV Walk back ", i, squares[i].Tile)
 		if squares[i].Tile == nil {
 			start = i + squareSet.Width
 			break
 		}
 	}
 
-	fmt.Println("Finished walkback with ", start)
-
 	for i := target; i <= colEnd; i += squareSet.Width {
-		fmt.Println("walk forward", i, squares[i].Tile)
+		fmt.Println("WBV Walk forward ", i, squares[i].Tile)
 		if squares[i].Tile == nil {
 			end = i - squareSet.Width
 			break
 		}
 	}
 
-	fmt.Println("Finished walk forward with ", end)
-
 	return start, end
+}
+
+func GetSquareScore(square entity.Square) int {
+	// There is no letter on this tile, so there is no score
+	if square.Tile == nil {
+		return 0
+	}
+
+	// No bonus tile, so the score is the raw tile score
+	if square.Bonus == nil {
+		return square.Tile.Score
+	}
+
+	if square.Bonus.Type == "double-letter" {
+		return square.Tile.Score * 2
+	}
+
+	if square.Bonus.Type == "triple-letter" {
+		return square.Tile.Score * 3
+	}
+
+	return square.Tile.Score
+}
+
+func GetSquareWordMultiplier(square entity.Square) int {
+	if square.Tile == nil || square.Bonus == nil {
+		return 0
+	}
+
+	if square.Bonus.Type == "double-word" {
+		return 2
+	}
+
+	if square.Bonus.Type == "triple-word" {
+		return 3
+	}
+
+	return 0
+}
+
+// GetColStart gets the start index of a column based on the width of the entity.SquareSet
+func GetColStart(squareSet entity.SquareSet, index int) int {
+	rowNum := int(math.Floor(float64(index / squareSet.Width)))
+	return index - (squareSet.Width * rowNum)
+}
+
+// GetColEnd gets the end index of a column based on the width of the entity.SquareSet
+func GetColEnd(squareSet entity.SquareSet, index int) int {
+	rowNum := int(math.Floor(float64(index / squareSet.Width)))
+	return index + squareSet.Width*(squareSet.Height-rowNum-1)
+}
+
+// GetRowStart gets the start index of a row based on the width of the entity.SquareSet
+func GetRowStart(squareSet entity.SquareSet, index int) int {
+	return index - (index % squareSet.Width)
+}
+
+// GetRowEnd gets the end index of a row based on the width of the entity.SquareSet
+func GetRowEnd(squareSet entity.SquareSet, index int) int {
+	return index + (squareSet.Width - 1 - (index % squareSet.Width))
 }

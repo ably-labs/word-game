@@ -166,11 +166,11 @@ func (lc *LobbyController) PutMember(c echo.Context) error {
 		lc.db.Save(lobby)
 	}
 
-	_ = publishLobbyMessage(lc.ably, lobby.ID, "message", entity.ChatSent{
+	_ = util.PublishLobbyMessage(lc.ably, lobby.ID, "message", entity.ChatSent{
 		Message: fmt.Sprintf("%s joined the game", user.Name),
 		Author:  "system",
 	})
-	_ = publishLobbyMessage(lc.ably, lobby.ID, "memberAdd", lobbyMember)
+	_ = util.PublishLobbyMessage(lc.ably, lobby.ID, "memberAdd", lobbyMember)
 
 	return c.NoContent(204)
 }
@@ -202,11 +202,11 @@ func (lc *LobbyController) DeleteMember(c echo.Context) error {
 		lc.db.Save(lobby)
 	}
 
-	_ = publishLobbyMessage(lc.ably, lobby.ID, "message", entity.ChatSent{
+	_ = util.PublishLobbyMessage(lc.ably, lobby.ID, "message", entity.ChatSent{
 		Message: fmt.Sprintf("%s left the game", user.Name), // TODO: This shows the remover's name if another user was kicked
 		Author:  "system",
 	})
-	_ = publishLobbyMessage(lc.ably, lobby.ID, "memberRemove", lobbyMember)
+	_ = util.PublishLobbyMessage(lc.ably, lobby.ID, "memberRemove", lobbyMember)
 
 	return c.NoContent(204)
 }
@@ -229,7 +229,7 @@ func (lc *LobbyController) PatchMember(c echo.Context) error {
 
 	// TODO Updating a member to a player doesn't change the player count
 
-	_ = publishLobbyMessage(lc.ably, &lobbyMember.LobbyID, "memberUpdate", lobbyMember)
+	_ = util.PublishLobbyMessage(lc.ably, &lobbyMember.LobbyID, "memberUpdate", lobbyMember)
 
 	return c.NoContent(204)
 }
@@ -243,8 +243,4 @@ func (lc *LobbyController) GetMembers(c echo.Context) error {
 	}
 
 	return c.JSON(200, members)
-}
-
-func publishLobbyMessage(client *ably.Realtime, lobby *uint32, name string, message interface{}) error {
-	return client.Channels.Get(fmt.Sprintf("lobby-%d", *lobby)).Publish(context.Background(), name, message)
 }

@@ -27,7 +27,6 @@ func testHozLayout(t *testing.T, layout string, width int, height int, wordStart
 		assert.Equal(t, wordStart, start, "Start calculated incorrectly from target %d", i)
 		assert.Equal(t, wordEnd, end, "End calculated incorrectly from target %d", i)
 	}
-	fmt.Println("---")
 }
 
 func testVertLayout(t *testing.T, layout string, width int, height int, wordStart int, wordEnd int) {
@@ -37,12 +36,47 @@ func testVertLayout(t *testing.T, layout string, width int, height int, wordStar
 		start, end := GetWordBoundsVert(board, i)
 		assert.Equal(t, wordStart, start, "Start calculated incorrectly from target %d", i)
 		assert.Equal(t, wordEnd, end, "End calculated incorrectly from target %d", i)
-		fmt.Println("---")
 	}
-	fmt.Println("===")
 }
 
 func TestGetWordBoundsVert(t *testing.T) {
 	testVertLayout(t, "-A---B---C---D--", 4, 4, 1, 13)
-	testVertLayout(t, "A--B--C--D--", 3, 4, 0, 10)
+	testVertLayout(t, "A--B--C--D--", 3, 4, 0, 9)
+	testVertLayout(t, "ABCDEFGHIJKL", 3, 4, 1, 10)
+}
+
+func TestGetNewWords(t *testing.T) {
+	layout := "~--@---~---@--~" +
+		"-#---!---!---#-" +
+		"--#---@-@---#--" +
+		"@--#---@---#--@" +
+		"----#-----#----" +
+		"-!--aardvark-!-" +
+		"--@--C@-@A--@--" +
+		"~--@-H-*-A-@--~" +
+		"--@--E@-@A--@--" +
+		"-!---S---A---!-" +
+		"---------A#----" +
+		"@--#--LMNOPQ--@" +
+		"--#---@-@---#--" +
+		"-#---!---!---#-" +
+		"~--#---~---#--~"
+	board := NewBoardFromLayout(layout, 15, 15)
+
+	words := GetNewWords(board)
+
+	for _, word := range words {
+		for _, letter := range word {
+			if letter.Tile != nil {
+				fmt.Print(letter.Tile.Letter)
+			} else {
+				fmt.Print("-")
+			}
+
+		}
+		fmt.Println()
+	}
+
+	ValidateBoard(board)
+
 }

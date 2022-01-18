@@ -2,10 +2,12 @@ package controller
 
 import (
 	_ "embed"
+	"fmt"
 	"github.com/ably-labs/word-game/word-game-be/constant"
 	"github.com/ably-labs/word-game/word-game-be/entity"
 	"github.com/ably-labs/word-game/word-game-be/middleware"
 	"github.com/ably-labs/word-game/word-game-be/model"
+	"github.com/ably-labs/word-game/word-game-be/util"
 	"github.com/ably/ably-go/ably"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
@@ -75,7 +77,8 @@ func (gc *GameController) PatchBoard(c echo.Context) error {
 	}
 
 	// Disallow this move if it affects the board when it's not the users turn
-	if boardUpdate && lobby.PlayerTurnID != &lobbyMember.UserID {
+	if boardUpdate && *lobby.PlayerTurnID != lobbyMember.UserID {
+		fmt.Println(lobby.PlayerTurnID, lobbyMember.UserID)
 		return c.JSON(403, entity.ErrNotYourTurn)
 	}
 
@@ -92,7 +95,7 @@ func (gc *GameController) PatchBoard(c echo.Context) error {
 	(*fromBoard.Squares)[moveTile.FromIndex].Tile = nil
 
 	if boardUpdate {
-		_ = publishLobbyMessage(gc.ably, lobby.ID, "moveTile", map[string]interface{}{
+		_ = util.PublishLobbyMessage(gc.ably, lobby.ID, "moveTile", map[string]interface{}{
 			"move": moveTile,
 			"tile": (*toBoard.Squares)[moveTile.ToIndex].Tile,
 		})
@@ -109,8 +112,22 @@ func validatePos(board entity.SquareSet, position int) bool {
 }
 
 func (gc *GameController) EndTurn(c echo.Context) error {
-	//lobby := c.Get("lobby").(*model.Lobby)
-	//lobbyMember := c.Get("lobbyMember").(*model.LobbyMember)
+	lobby := c.Get("lobby").(*model.Lobby)
+	lobbyMember := c.Get("lobbyMember").(*model.LobbyMember)
+
+	score := util.ValidateBoard(lobby.Board)
+
+	if score == 0 {
+		return c.JSON(400, entity.ErrInvalidPlay)
+	}
+
+	lobbyMember.Score += score
+
+	_ = util.PublishLobbyMessage(gc.ably, lobby.ID, "scoreUpdate", lobbyMember.Score)
+
+	// TODO: Bag, turn
+
+	gc.db.Save(&lobbyMember)
 
 	return c.NoContent(204)
 }
