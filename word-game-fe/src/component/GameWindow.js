@@ -36,6 +36,9 @@ class GameWindow extends React.Component {
         const {data: boards} = await defAxios.get(`game/${this.props.lobbyId}/boards`);
         this.setState({boards, lobby})
         this.channel = this.props.realtime.channels.get(`lobby-${this.props.lobbyId}`);
+        console.log("Subscribing to messages");
+        this.channel.on("attach", console.log);
+        console.log(this.channel.state);
         this.channel.subscribe(this.onMessage)
     }
 
@@ -49,6 +52,7 @@ class GameWindow extends React.Component {
     }
 
     onMessage(message){
+        console.log(message);
         switch(message.name){
             case "moveTile":
                 const {move, tile} = message.data;

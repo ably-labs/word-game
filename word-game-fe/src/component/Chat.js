@@ -22,8 +22,9 @@ export default class Chat extends React.Component {
     }
 
     async componentDidMount(){
+        const {data: members} = await defAxios.get(`lobby/${this.props.lobbyId}/member`)
         let {data: messages} = await defAxios.get(`chat/${this.props.lobbyId}`)
-        this.setState({messages}, ()=>this.anchor.current.scrollIntoView());
+        this.setState({messages, members}, ()=>this.anchor.current.scrollIntoView());
         const channel = this.props.realtime.channels.get(`lobby-${this.props.lobbyId}`);
         console.log("Subscribing to channel");
         channel.subscribe(this.onMessage);
@@ -35,6 +36,8 @@ export default class Chat extends React.Component {
                 this.setState({messages: this.state.messages.concat(message.data)}, ()=>this.anchor.current.scrollIntoView())
                 break;
         }
+
+        // TODO memberJoin/memberLeave events
     }
 
 
