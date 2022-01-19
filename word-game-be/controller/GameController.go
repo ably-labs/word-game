@@ -104,6 +104,7 @@ func (gc *GameController) PatchBoard(c echo.Context) error {
 	(*fromBoard.Squares)[moveTile.FromIndex].Tile = nil
 
 	if boardUpdate {
+		fmt.Println("Updating board")
 		_ = util.PublishLobbyMessage(gc.ably, lobby.ID, "moveTile", map[string]interface{}{
 			"move": moveTile,
 			"tile": (*toBoard.Squares)[moveTile.ToIndex].Tile,
@@ -133,7 +134,7 @@ func (gc *GameController) EndTurn(c echo.Context) error {
 	lobbyMember.Score += score
 
 	_ = util.PublishLobbyMessage(gc.ably, lobby.ID, "message", entity.ChatSent{
-		Message: fmt.Sprintf("%s scored %d points", lobbyMember.User.Name, score),
+		Message: fmt.Sprintf("<@%d> scored %d points", lobbyMember.UserID, score),
 		Author:  "system",
 	})
 
@@ -157,7 +158,7 @@ func (gc *GameController) EndTurn(c echo.Context) error {
 	for i, member := range lobby.Members {
 		if member.UserID == *lobby.PlayerTurnID {
 			if i == len(lobby.Members)-1 {
-				*lobby.PlayerTurnID = 0
+				*lobby.PlayerTurnID = lobby.Members[i+0].UserID
 			} else {
 				*lobby.PlayerTurnID = lobby.Members[i+1].UserID
 			}
