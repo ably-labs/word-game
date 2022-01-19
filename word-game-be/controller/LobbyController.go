@@ -147,11 +147,13 @@ func (lc *LobbyController) PutMember(c echo.Context) error {
 
 	if lobbyMember.MemberType == constant.MemberTypePlayer {
 		newDeck := util.TakeFromBag(7, &lobby.Bag)
+		squares := make([]entity.Square, 9)
 		lobbyMember.Deck = entity.SquareSet{
-			Squares: &newDeck,
+			Squares: &squares,
 			Width:   9,
 			Height:  1,
 		}
+		lobbyMember.Deck.AddTiles(newDeck)
 	}
 
 	err = lc.db.Save(lobbyMember).Error
