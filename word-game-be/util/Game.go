@@ -164,12 +164,9 @@ func ValidateBoard(squareSet entity.SquareSet) int {
 func GetNewWords(squareSet entity.SquareSet) [][]*entity.Square {
 	indices := GetPlacedTileIndices(squareSet)
 
-	var isHoz bool
-	var words [][]*entity.Square
-
 	if len(indices) > 1 {
 		// If the first and second tiles are on the same row, this must be a horizontal word
-		isHoz = GetRowStart(squareSet, indices[0]) == GetRowStart(squareSet, indices[1])
+		isHoz := GetRowStart(squareSet, indices[0]) == GetRowStart(squareSet, indices[1])
 		originalWord := GetSquaresForWord(squareSet, indices[0], isHoz)
 
 		// Check every single draggable tile is inside the original word
@@ -189,19 +186,31 @@ func GetNewWords(squareSet entity.SquareSet) [][]*entity.Square {
 			return [][]*entity.Square{}
 		}
 
-		words = [][]*entity.Square{
+		words := [][]*entity.Square{
 			originalWord,
 		}
-	} else {
-		isHoz = true
-		words = make([][]*entity.Square, 0)
+
+		// Collect the new word boundaries for each row
+		for _, index := range indices {
+			wordSquares := GetSquaresForWord(squareSet, index, !isHoz)
+			if len(wordSquares) > 1 {
+				words = append(words, wordSquares)
+			}
+		}
+
+		return words
 	}
 
-	// Collect the new word boundaries for each row
+	words := make([][]*entity.Square, 0)
+
 	for _, index := range indices {
-		wordSquares := GetSquaresForWord(squareSet, index, !isHoz)
-		if len(wordSquares) > 1 {
-			words = append(words, wordSquares)
+		hozWordSquares := GetSquaresForWord(squareSet, index, true)
+		if len(hozWordSquares) > 1 {
+			words = append(words, hozWordSquares)
+		}
+		vertWordSquares := GetSquaresForWord(squareSet, index, false)
+		if len(vertWordSquares) > 1 {
+			words = append(words, vertWordSquares)
 		}
 	}
 
