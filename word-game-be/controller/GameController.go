@@ -143,10 +143,9 @@ func (gc *GameController) EndTurn(c echo.Context) error {
 
 	if len(*lobby.Bag.Squares) > 0 {
 		lobbyMember.Deck.AddTiles(util.TakeFromBag(7-remainingTiles, &lobby.Bag))
-	} else if len(*lobbyMember.Deck.Squares) == 0 {
-		// TODO: Win condition
-		fmt.Println("Win!")
 	}
+
+	fmt.Println("Deck length", len(*lobbyMember.Deck.Squares))
 
 	indices := util.GetPlacedTileIndices(lobby.Board)
 	for _, index := range indices {
@@ -155,7 +154,19 @@ func (gc *GameController) EndTurn(c echo.Context) error {
 
 	gc.db.Order("joined_at").Find(&lobby.Members)
 
-	fmt.Println(lobby.Members)
+	for i, member := range lobby.Members {
+		if member.UserID == *lobby.PlayerTurnID {
+			if i == len(lobby.Members)-1 {
+				*lobby.PlayerTurnID = 0
+			} else {
+				*lobby.PlayerTurnID = lobby.Members[i+1].UserID
+			}
+			break
+		}
+	}
+
+	fmt.Println("It is now this players turn ", *lobby.PlayerTurnID)
+	_ = util.PublishLobbyMessage(gc.ably, lobby.ID, "lobbyUpdate", lobby)
 
 	gc.db.Save(&lobbyMember)
 	gc.db.Save(&lobby)
