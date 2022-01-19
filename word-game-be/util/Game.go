@@ -168,7 +168,11 @@ func GetNewWords(squareSet entity.SquareSet) [][]*entity.Square {
 
 	// Check every single draggable tile is inside the original word
 	seenCount := 0
-	for _, square := range originalWord {
+	for i, square := range originalWord {
+		if square.Tile == nil {
+			fmt.Printf("WARN: Word starting at %d contains invalid square %v at position %d\n", indices[0], square, i)
+			continue
+		}
 		if square.Tile.Draggable {
 			seenCount++
 		}
@@ -208,19 +212,6 @@ func GetSquaresForWord(squareSet entity.SquareSet, index int, isHoz bool) []*ent
 	for i := start; i <= end; i += interval {
 		wordSquares = append(wordSquares, &(*squareSet.Squares)[i])
 	}
-	return wordSquares
-}
-
-func GetSquaresWithinBounds(squareSet entity.SquareSet, start int, end int, hoz bool) []*entity.Square {
-	wordSquares := make([]*entity.Square, 0)
-	interval := 1
-	if !hoz {
-		interval = squareSet.Width
-	}
-	for i := start; i <= end; i += interval {
-		wordSquares = append(wordSquares, &(*squareSet.Squares)[i])
-	}
-
 	return wordSquares
 }
 

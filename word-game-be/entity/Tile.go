@@ -32,6 +32,31 @@ type SquareSet struct {
 	Height  int       `json:"height,omitempty"`
 }
 
+func (t *SquareSet) TileCount() int {
+	count := 0
+	for _, square := range *t.Squares {
+		if square.Tile != nil {
+			count++
+		}
+	}
+	return count
+}
+
+func (t *SquareSet) AddTiles(squares []Square) {
+	x := 0
+	// Fill the empty squares first
+	for i, square := range *t.Squares {
+		if square.Tile == nil {
+			(*t.Squares)[i] = squares[x]
+			x++
+		}
+	}
+	// Append the rest to the end of the SquareSet
+	if x < len(squares) {
+		*t.Squares = append(*t.Squares, squares[x:]...)
+	}
+}
+
 func (t *SquareSet) Scan(src interface{}) error {
 	bytes, ok := src.([]byte)
 	if !ok {

@@ -27,6 +27,7 @@ func NewGameController(e *echo.Group, db *gorm.DB, ably *ably.Realtime) *GameCon
 	g := e.Group("/:id", middleware.RequireAuthorisation, middleware.ValidateLobby, middleware.RequireLobbyMember)
 
 	g.GET("/boards", gc.GetBoards)
+	g.GET("/boards/deck", gc.GetDeck)
 	g.PATCH("/boards", gc.PatchBoard)
 	g.POST("/boards", gc.EndTurn, middleware.RequireTurn)
 
@@ -45,6 +46,14 @@ func (gc *GameController) GetBoards(c echo.Context) error {
 	}
 
 	return c.JSON(200, boards)
+}
+
+func (gc *GameController) GetDeck(c echo.Context) error {
+	lobbyMember := c.Get("lobbyMember").(*model.LobbyMember)
+	if lobbyMember.MemberType == constant.MemberTypeSpectator {
+		return c.JSON(403, entity.ErrSpectating)
+	}
+	return c.JSON(200, lobbyMember.Deck)
 }
 
 func (gc *GameController) PatchBoard(c echo.Context) error {
@@ -123,11 +132,33 @@ func (gc *GameController) EndTurn(c echo.Context) error {
 
 	lobbyMember.Score += score
 
+	_ = util.PublishLobbyMessage(gc.ably, lobby.ID, "message", entity.ChatSent{
+		Message: fmt.Sprintf("%s scored %d points", lobbyMember.User.Name, score),
+		Author:  "system",
+	})
+
 	_ = util.PublishLobbyMessage(gc.ably, lobby.ID, "scoreUpdate", lobbyMember.Score)
 
-	// TODO: Bag, turn
+	remainingTiles := lobbyMember.Deck.TileCount()
+
+	if len(*lobby.Bag.Squares) > 0 {
+		lobbyMember.Deck.AddTiles(util.TakeFromBag(7-remainingTiles, &lobby.Bag))
+	} else if len(*lobbyMember.Deck.Squares) == 0 {
+		// TODO: Win condition
+		fmt.Println("Win!")
+	}
+
+	indices := util.GetPlacedTileIndices(lobby.Board)
+	for _, index := range indices {
+		(*lobby.Board.Squares)[index].Tile.Draggable = false
+	}
+
+	gc.db.Order("joined_at").Find(&lobby.Members)
+
+	fmt.Println(lobby.Members)
 
 	gc.db.Save(&lobbyMember)
+	gc.db.Save(&lobby)
 
 	return c.NoContent(204)
 }

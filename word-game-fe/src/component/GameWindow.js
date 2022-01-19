@@ -39,6 +39,11 @@ class GameWindow extends React.Component {
         this.channel.subscribe(this.onMessage)
     }
 
+    async fetchBoards(){
+        const {data: boards} = await defAxios.get(`game/${this.props.lobbyId}/boards`);
+        this.setState({boards});
+    }
+
     componentWillUnmount() {
         this.channel.unsubscribe(this.onMessage);
     }
@@ -148,6 +153,7 @@ class GameWindow extends React.Component {
     async play(){
        let result = await defAxios.post(`game/${this.props.lobbyId}/boards`);
        console.log(result);
+       await this.fetchBoards();
     }
 
     pass(){
