@@ -106,8 +106,15 @@ func NewBoard() entity.SquareSet {
 }
 
 func TakeFromBag(n int, bag *entity.SquareSet) []entity.Square {
-	tiles := (*bag.Squares)[:n]
-	*bag.Squares = (*bag.Squares)[n+1:]
+	bagRemaining := len(*bag.Squares)
+	var tiles []entity.Square
+	if bagRemaining <= n {
+		tiles = *bag.Squares
+		*bag.Squares = []entity.Square{}
+	} else {
+		tiles = (*bag.Squares)[:n]
+		*bag.Squares = (*bag.Squares)[n+1:]
+	}
 	for i := range tiles {
 		tiles[i].Tile.Draggable = true
 	}
@@ -157,34 +164,37 @@ func ValidateBoard(squareSet entity.SquareSet) int {
 func GetNewWords(squareSet entity.SquareSet) [][]*entity.Square {
 	indices := GetPlacedTileIndices(squareSet)
 
-	fmt.Println("ind 0 row start", GetRowStart(squareSet, indices[0]))
-	fmt.Println("ind 1 row start", GetRowStart(squareSet, indices[1]))
-	// If the first and second tiles are on the same row, this must be a horizontal word
-	isHoz := GetRowStart(squareSet, indices[0]) == GetRowStart(squareSet, indices[1])
+	var isHoz bool
+	var words [][]*entity.Square
 
-	fmt.Println("isHoz", isHoz)
+	if len(indices) > 1 {
+		// If the first and second tiles are on the same row, this must be a horizontal word
+		isHoz = GetRowStart(squareSet, indices[0]) == GetRowStart(squareSet, indices[1])
+		originalWord := GetSquaresForWord(squareSet, indices[0], isHoz)
 
-	originalWord := GetSquaresForWord(squareSet, indices[0], isHoz)
-
-	// Check every single draggable tile is inside the original word
-	seenCount := 0
-	for i, square := range originalWord {
-		if square.Tile == nil {
-			fmt.Printf("WARN: Word starting at %d contains invalid square %v at position %d\n", indices[0], square, i)
-			continue
+		// Check every single draggable tile is inside the original word
+		seenCount := 0
+		for i, square := range originalWord {
+			if square.Tile == nil {
+				fmt.Printf("WARN: Word starting at %d contains invalid square %v at position %d\n", indices[0], square, i)
+				continue
+			}
+			if square.Tile.Draggable {
+				seenCount++
+			}
 		}
-		if square.Tile.Draggable {
-			seenCount++
+
+		// If there are less draggable tiles inside the original word, the placement is invalid
+		if seenCount < len(indices) {
+			return [][]*entity.Square{}
 		}
-	}
 
-	// If there are less draggable tiles inside the original word, the placement is invalid
-	if seenCount < len(indices) {
-		return [][]*entity.Square{}
-	}
-
-	words := [][]*entity.Square{
-		originalWord,
+		words = [][]*entity.Square{
+			originalWord,
+		}
+	} else {
+		isHoz = true
+		words = make([][]*entity.Square, 0)
 	}
 
 	// Collect the new word boundaries for each row

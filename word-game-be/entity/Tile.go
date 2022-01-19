@@ -49,6 +49,9 @@ func (t *SquareSet) AddTiles(squares []Square) {
 		if square.Tile == nil {
 			(*t.Squares)[i] = squares[x]
 			x++
+			if x >= len(squares) {
+				break
+			}
 		}
 	}
 	// Append the rest to the end of the SquareSet
