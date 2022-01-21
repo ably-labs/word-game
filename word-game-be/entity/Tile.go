@@ -15,8 +15,11 @@ type Square struct {
 }
 
 type Bonus struct {
-	Text string `json:"text"`
-	Type string `json:"type"`
+	LetterMultiplier int    `json:"letterMultiplier,omitempty"`
+	WordMultiplier   int    `json:"wordMultiplier,omitempty"`
+	Start            bool   `json:"start,omitempty"`
+	Text             string `json:"text"`
+	Type             string `json:"type"`
 }
 
 type Tile struct {

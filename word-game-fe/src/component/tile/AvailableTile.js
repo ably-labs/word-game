@@ -1,7 +1,7 @@
 import React, {useState} from "react";
 import "../../css/tile.css";
 
-export default ({index, children, style, className = "tile empty", onTileDropped, source = "main"})=>{
+export default ({index, children, style, className = "tile empty", onTileDropped, source = "main", debug = false})=>{
 
     const [draggedOver, setDraggedOver] = useState(false);
 
@@ -34,6 +34,6 @@ export default ({index, children, style, className = "tile empty", onTileDropped
                onDrop={onDrop}
                data-index={index}
                style={style}>
-        {children}
+        {debug ? index : children}
     </td>;
 }

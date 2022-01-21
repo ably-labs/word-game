@@ -3,6 +3,7 @@ package util
 import (
 	"fmt"
 	"github.com/ably-labs/word-game/word-game-be/entity"
+	"github.com/ably-labs/word-game/word-game-be/util/layout"
 	"math"
 	"math/rand"
 	"strings"
@@ -69,11 +70,11 @@ const boardLayout = "~--@---~---@--~" +
 
 var boardMap = map[rune]entity.Square{
 	'-': {},
-	'~': {Bonus: &entity.Bonus{Text: "TRIPLE WORD", Type: "triple-word"}},
-	'@': {Bonus: &entity.Bonus{Text: "DOUBLE LETTER", Type: "double-letter"}},
-	'#': {Bonus: &entity.Bonus{Text: "DOUBLE WORD", Type: "double-word"}},
-	'!': {Bonus: &entity.Bonus{Text: "TRIPLE LETTER", Type: "triple-letter"}},
-	'*': {Bonus: &entity.Bonus{Text: "START", Type: "double-word"}},
+	'~': {Bonus: &entity.Bonus{WordMultiplier: 3}},
+	'@': {Bonus: &entity.Bonus{LetterMultiplier: 2}},
+	'#': {Bonus: &entity.Bonus{WordMultiplier: 2}},
+	'!': {Bonus: &entity.Bonus{LetterMultiplier: 3}},
+	'*': {Bonus: &entity.Bonus{WordMultiplier: 2, Start: true}},
 }
 
 func NewBoardFromLayout(layout string, width int, height int) entity.SquareSet {
@@ -101,8 +102,22 @@ func NewBoardFromLayout(layout string, width int, height int) entity.SquareSet {
 	}
 }
 
-func NewBoard() entity.SquareSet {
-	return NewBoardFromLayout(boardLayout, 15, 15)
+func NewBoardFromFunc(width int, height int, creator layout.BoardLayout) entity.SquareSet {
+	board := make([]entity.Square, width*height)
+
+	for i := range board {
+		board[i].Bonus = creator.PlaceBonus(width, height, i)
+	}
+
+	return entity.SquareSet{
+		Squares: &board,
+		Width:   width,
+		Height:  height,
+	}
+}
+
+func NewBoard(width int, height int) entity.SquareSet {
+	return NewBoardFromFunc(width, height, layout.BoardLayoutRegular{})
 }
 
 func TakeFromBag(n int, bag *entity.SquareSet) []entity.Square {
@@ -164,6 +179,13 @@ func ValidateBoard(squareSet entity.SquareSet) int {
 func GetNewWords(squareSet entity.SquareSet) [][]*entity.Square {
 	indices := GetPlacedTileIndices(squareSet)
 
+	fmt.Println("Checking placed tile indices...")
+	for _, index := range indices {
+		if (*squareSet.Squares)[index].Tile == nil {
+			fmt.Println("Placed Tile index ", index, "is nil")
+		}
+	}
+
 	if len(indices) > 1 {
 		// If the first and second tiles are on the same row, this must be a horizontal word
 		isHoz := GetRowStart(squareSet, indices[0]) == GetRowStart(squareSet, indices[1])
@@ -171,6 +193,7 @@ func GetNewWords(squareSet entity.SquareSet) [][]*entity.Square {
 
 		// Check every single draggable tile is inside the original word
 		seenCount := 0
+		fmt.Println("Checking originalWord")
 		for i, square := range originalWord {
 			if square.Tile == nil {
 				fmt.Printf("WARN: Word starting at %d contains invalid square %v at position %d\n", indices[0], square, i)
@@ -193,6 +216,11 @@ func GetNewWords(squareSet entity.SquareSet) [][]*entity.Square {
 		// Collect the new word boundaries for each row
 		for _, index := range indices {
 			wordSquares := GetSquaresForWord(squareSet, index, !isHoz)
+			for i, square := range wordSquares {
+				if square.Tile == nil {
+					fmt.Printf("Word square at %d + %d is incorrect, %v\n", index, i, square.Tile)
+				}
+			}
 			if len(wordSquares) > 1 {
 				words = append(words, wordSquares)
 			}
@@ -241,21 +269,27 @@ func GetWordBoundsHoz(squareSet entity.SquareSet, target int) (int, int) {
 	rowStart := GetRowStart(squareSet, target)
 	rowEnd := GetRowEnd(squareSet, target)
 
-	start := rowStart
+	start := target
 	end := rowEnd
 
 	// walk backwards through the board until we run out of placed tiles on that row
 	for i := target; i > rowStart; i-- {
+		fmt.Println("WBH walk back", i, squares[i].Tile)
 		if squares[i].Tile == nil {
 			start = i + 1
+			fmt.Println("Determined start as ", i+1, squares[i+1].Tile)
 			break
 		}
 	}
 
+	fmt.Println("start ", start, squares[start].Tile, rowStart)
+
 	// walk forwards in the same manner
 	for i := target; i <= rowEnd; i++ {
+		fmt.Println("WBH walk forwards", i, squares[i].Tile)
 		if squares[i].Tile == nil {
 			end = i - 1
+			fmt.Println("Determined end as ", i-1, squares[i-1].Tile)
 			break
 		}
 	}
@@ -302,15 +336,7 @@ func GetSquareScore(square entity.Square) int {
 		return square.Tile.Score
 	}
 
-	if square.Bonus.Type == "double-letter" {
-		return square.Tile.Score * 2
-	}
-
-	if square.Bonus.Type == "triple-letter" {
-		return square.Tile.Score * 3
-	}
-
-	return square.Tile.Score
+	return square.Tile.Score * square.Bonus.LetterMultiplier
 }
 
 func GetSquareWordMultiplier(square entity.Square) int {
@@ -318,15 +344,7 @@ func GetSquareWordMultiplier(square entity.Square) int {
 		return 0
 	}
 
-	if square.Bonus.Type == "double-word" {
-		return 2
-	}
-
-	if square.Bonus.Type == "triple-word" {
-		return 3
-	}
-
-	return 0
+	return square.Bonus.WordMultiplier
 }
 
 // GetColStart gets the start index of a column based on the width of the entity.SquareSet

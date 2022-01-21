@@ -34,8 +34,16 @@ func main() {
 
 	// Save the standard type
 	standardType := model.GameType{
-		ID:   1,
-		Name: "Standard",
+		ID:               1,
+		Name:             "Standard",
+		TileBagSize:      100,
+		PlayerDeckSize:   9,
+		PlayerTileCount:  7,
+		EnableBlankTiles: true,
+		BoardWidth:       15,
+		BoardHeight:      15,
+		BonusTilePattern: model.Regular,
+		StartAnywhere:    false,
 	}
 	err = db.Save(&standardType).Error
 	if err != nil {

@@ -19,7 +19,7 @@ func ValidateLobby(handlerFunc echo.HandlerFunc) echo.HandlerFunc {
 		castLobbyId := uint32(lobbyId)
 
 		lobby := model.Lobby{ID: &castLobbyId}
-		err = db.Find(&lobby).Error
+		err = db.Preload("GameType").Find(&lobby).Error
 
 		if err == gorm.ErrRecordNotFound {
 			return c.JSON(404, entity.ErrLobbyNotFound)

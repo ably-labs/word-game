@@ -64,9 +64,10 @@ func (cc *ChatController) PostChatMessage(c echo.Context) error {
 }
 
 func (cc *ChatController) GetChatHistory(c echo.Context) error {
+	lobby := c.Get("lobby").(*model.Lobby)
 	var messages []model.Message
 
-	err := cc.db.Preload("Author").Limit(50).Order("Timestamp").Find(&messages).Error
+	err := cc.db.Where("lobby_id = ?", lobby.ID).Preload("Author").Limit(50).Order("Timestamp").Find(&messages).Error
 
 	if err != nil {
 		fmt.Println(err)

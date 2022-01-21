@@ -29,6 +29,9 @@ func NewLobbyController(e *echo.Group, db *gorm.DB, ably *ably.Realtime) *LobbyC
 	e.GET("", lc.GetLobbies)
 	e.POST("", lc.PostLobby, middleware.RequireAuthorisation)
 
+	e.GET("/types", lc.GetGameTypes)
+	e.POST("/types", lc.PostGameType, middleware.RequireAuthorisation)
+
 	// Endpoints which require a valid lobby
 	lobbyGroup := e.Group("/:id", middleware.RequireAuthorisation, middleware.ValidateLobby)
 	lobbyGroup.GET("", lc.GetLobby)
@@ -39,6 +42,32 @@ func NewLobbyController(e *echo.Group, db *gorm.DB, ably *ably.Realtime) *LobbyC
 	lobbyGroup.PATCH("/member", lc.PatchMember, middleware.RequireLobbyMember)
 
 	return &lc
+}
+
+func (lc *LobbyController) GetGameTypes(c echo.Context) error {
+	var gameTypes []model.GameType
+	lc.db.Find(&gameTypes)
+	return c.JSON(200, gameTypes)
+}
+
+func (lc *LobbyController) PostGameType(c echo.Context) error {
+	gameType := model.GameType{}
+	err := c.Bind(&gameType)
+	if err != nil {
+		return c.JSON(400, entity.ErrInvalidInput)
+	}
+
+	// Zero out the ID to prevent people setting their own
+	gameType.ID = 0
+	gameType.Visible = false
+
+	err = lc.db.Save(&gameType).Error
+
+	if err != nil {
+		return c.JSON(400, entity.ErrDatabaseError)
+	}
+
+	return c.JSON(200, gameType)
 }
 
 func (lc *LobbyController) GetLobbies(c echo.Context) error {
@@ -59,8 +88,19 @@ func (lc *LobbyController) PostLobby(c echo.Context) error {
 		return c.JSON(400, entity.ErrInvalidInput)
 	}
 	user := c.Get("user").(*model.User)
+
+	gameType := model.GameType{
+		ID: createLobby.GameType,
+	}
+
+	err = lc.db.Find(&gameType).Error
+
+	if err != nil {
+		return c.JSON(400, entity.ErrDatabaseError)
+	}
+
 	tileBag := util.NewTileBag()
-	ownerDeck := util.TakeFromBag(7, &tileBag)
+	ownerDeck := util.TakeFromBag(gameType.PlayerTileCount, &tileBag)
 	newLobby := &model.Lobby{
 		Name:           createLobby.Name,
 		CreatorID:      user.ID,
@@ -70,9 +110,9 @@ func (lc *LobbyController) PostLobby(c echo.Context) error {
 		Joinable:       true,
 		CurrentPlayers: 1,
 		MaxPlayers:     4,
-		GameTypeID:     1,
+		GameTypeID:     createLobby.GameType,
 		PlayerTurnID:   user.ID,
-		Board:          util.NewBoard(),
+		Board:          util.NewBoard(gameType.BoardWidth, gameType.BoardHeight),
 		Bag:            tileBag,
 	}
 

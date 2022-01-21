@@ -16,6 +16,7 @@
 
 .tile.bonus{
     border-radius: 0;
+    text-transform:uppercase;
 }
 
 .tile .letter {

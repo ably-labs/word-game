@@ -16,6 +16,7 @@ class GameWindow extends React.Component {
 
     channel;
     state = {
+        debug: false,
         boards: {},
         lobby: {},
     }
@@ -29,6 +30,7 @@ class GameWindow extends React.Component {
         this.onMessage = this.onMessage.bind(this);
         this.play = this.play.bind(this);
         this.pass = this.pass.bind(this);
+        this.toggleDebug = this.toggleDebug.bind(this);
     }
 
     async componentDidMount(){
@@ -99,6 +101,7 @@ class GameWindow extends React.Component {
                 <div>
                     <Button disabled={this.isTurn()} onClick={this.play}>Play</Button>
                     <Button disabled={this.isTurn()} onClick={this.pass}>Pass</Button>
+                    <Button onClick={this.toggleDebug}>Debug</Button>
                 </div>
                 <IconButton title="Recall" onClick={this.recallTiles}><KeyboardDoubleArrowDownIcon/></IconButton>
                 <IconButton title="Shuffle" onClick={this.shuffleTiles}><ShuffleIcon/></IconButton>
@@ -111,12 +114,12 @@ class GameWindow extends React.Component {
     drawSquare(square, i, source){
         const key = `${source}${i}`
         if(square?.tile) {
-            return <LetterTile {...square.tile} index={i} source={source} key={key}/>
+            return <LetterTile {...square.tile} index={i} source={source} key={key} debug={this.state.debug}/>
         }
         else if(square?.bonus)
-            return <BonusTile {...square.bonus} index={i} onTileDropped={this.handleTileDrop} source={source} key={key}/>
+            return <BonusTile {...square.bonus} index={i} onTileDropped={this.handleTileDrop} source={source} key={key} debug={this.state.debug}/>
         else
-            return <EmptyTile index={i} onTileDropped={this.handleTileDrop} source={source} key={key}/>
+            return <EmptyTile index={i} onTileDropped={this.handleTileDrop} source={source} key={key} debug={this.state.debug}/>
     }
 
     async handleTileDrop(from, fromIndex, to, toIndex){
@@ -167,6 +170,10 @@ class GameWindow extends React.Component {
 
     swapTiles(){
         // TODO
+    }
+
+    toggleDebug(){
+        this.setState({debug: !this.state.debug})
     }
 
 }
