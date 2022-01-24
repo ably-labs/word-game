@@ -35,6 +35,7 @@ func NewLobbyController(e *echo.Group, db *gorm.DB, ably *ably.Realtime) *LobbyC
 	// Endpoints which require a valid lobby
 	lobbyGroup := e.Group("/:id", middleware.RequireAuthorisation, middleware.ValidateLobby)
 	lobbyGroup.GET("", lc.GetLobby)
+	lobbyGroup.PATCH("", lc.PatchLobby, middleware.RequireLobbyOwner)
 	lobbyGroup.GET("/thumbnail", lc.GetLobbyThumbnail)
 	lobbyGroup.PUT("/member", lc.PutMember)
 	lobbyGroup.GET("/member", lc.GetMembers, middleware.RequireLobbyMember)
@@ -42,6 +43,31 @@ func NewLobbyController(e *echo.Group, db *gorm.DB, ably *ably.Realtime) *LobbyC
 	lobbyGroup.PATCH("/member", lc.PatchMember, middleware.RequireLobbyMember)
 
 	return &lc
+}
+
+func (lc *LobbyController) PatchLobby(c echo.Context) error {
+	lobbyUpdate := entity.UpdateLobby{}
+	err := c.Bind(&lobbyUpdate)
+	if err != nil {
+		return c.JSON(400, entity.ErrInvalidInput)
+	}
+
+	if lobbyUpdate.State != entity.LobbyInGame {
+		return c.JSON(400, entity.ErrInvalidInput)
+	}
+
+	lobby := c.Get("lobby").(*model.Lobby)
+
+	lobby.State = lobbyUpdate.State
+
+	err = lc.db.Save(lobby).Error
+
+	if err != nil {
+		return c.JSON(500, entity.ErrDatabaseError)
+	}
+
+	return c.JSON(200, lobby)
+
 }
 
 func (lc *LobbyController) GetGameTypes(c echo.Context) error {
@@ -105,7 +131,7 @@ func (lc *LobbyController) PostLobby(c echo.Context) error {
 		Name:           createLobby.Name,
 		CreatorID:      user.ID,
 		CreatedAt:      time.Now(),
-		State:          model.LobbyWaitingForPlayers,
+		State:          entity.LobbyWaitingForPlayers,
 		Private:        createLobby.Private,
 		Joinable:       true,
 		CurrentPlayers: 1,

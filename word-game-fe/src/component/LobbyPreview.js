@@ -15,7 +15,7 @@ export default ({lobby})=>{
 
     const joinLobby = (type)=>{
         return async ()=>{
-            let result = await defAxios.put(`lobby/${lobby.id}/member`, {type})
+            await defAxios.put(`lobby/${lobby.id}/member`, {type})
             navigate(`/lobby/${lobby.id}`);
         }
 
@@ -45,7 +45,7 @@ export default ({lobby})=>{
             <Button size="small" onClick={joinLobby("spectator")}>
                 Spectate
             </Button>
-            <Button size="small" color="primary" disabled={!lobby.joinable} onClick={joinLobby("player")}>
+            <Button size="small" color="primary" disabled={!lobby.joinable || lobby.state === "inGame"} onClick={joinLobby("player")}>
                 Join
             </Button>
         </CardActions>

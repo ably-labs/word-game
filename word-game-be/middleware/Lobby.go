@@ -37,7 +37,8 @@ func RequireLobbyOwner(handleFunc echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		lobby := c.Get("lobby").(*model.Lobby)
 		user := c.Get("user").(*model.User)
-		if lobby.CreatorID != user.ID {
+		if *lobby.CreatorID != *user.ID {
+
 			return c.JSON(403, entity.ErrForbidden)
 		}
 		return handleFunc(c)
