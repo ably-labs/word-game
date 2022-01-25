@@ -119,6 +119,9 @@ class GameWindow extends React.Component {
                     return {lobby: state.lobby};
                 })
                 break;
+            case "lobbyUpdate":
+                this.setState({lobby: message.data});
+                break;
         }
     }
 
@@ -159,7 +162,7 @@ class GameWindow extends React.Component {
         }else{
             inner =  <>
                 <Typography align="center" variant="h5">Lobby is Full</Typography>
-                <Typography align="center">Waiting for host to start the game.</Typography>
+                {this.state.lobby.creatorId === this.props.user.id  && <Typography align="center">Start the game when you're ready</Typography>}
             </>
         }
         return <Box sx={{flexGrow: 1}}>

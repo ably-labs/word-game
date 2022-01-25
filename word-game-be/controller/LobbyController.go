@@ -67,6 +67,13 @@ func (lc *LobbyController) PatchLobby(c echo.Context) error {
 		return c.JSON(500, entity.ErrDatabaseError)
 	}
 
+	_ = util.PublishLobbyMessage(lc.ably, lobby.ID, "message", entity.ChatSent{
+		Message: "Game has started!",
+		Author:  "system",
+	})
+
+	_ = util.PublishLobbyMessage(lc.ably, lobby.ID, "lobbyUpdate", lobby)
+
 	return c.JSON(200, lobby)
 
 }
