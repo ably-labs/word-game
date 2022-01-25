@@ -113,6 +113,12 @@ class GameWindow extends React.Component {
                     return {boards: state.boards}
                 })
                 break;
+            case "memberAdd":
+                this.setState((state)=>{
+                    state.lobby.currentPlayers++
+                    return {lobby: state.lobby};
+                })
+                break;
         }
     }
 
@@ -141,12 +147,23 @@ class GameWindow extends React.Component {
     }
 
     renderWaiting(){
+        let inner;
+        if(this.state.lobby.currentPlayers < this.state.lobby.maxPlayers){
+            inner = <>
+                <Typography align="center" variant="h5">Waiting for players ({this.state.lobby.currentPlayers}/{this.state.lobby.maxPlayers})</Typography>
+                <Typography align="center">Invite players with this URL:</Typography>
+                <Typography align="center">
+                    <GameInvite lobbyId={this.props.lobbyId}/>
+                </Typography>
+            </>
+        }else{
+            inner =  <>
+                <Typography align="center" variant="h5">Lobby is Full</Typography>
+                <Typography align="center">Waiting for host to start the game.</Typography>
+            </>
+        }
         return <Box sx={{flexGrow: 1}}>
-            <Typography align="center" variant="h5">Waiting for players ({this.state.lobby.currentPlayers}/{this.state.lobby.maxPlayers})</Typography>
-            <Typography align="center">Invite players with this URL:</Typography>
-            <Typography align="center">
-                <GameInvite lobbyId={this.props.lobbyId}/>
-            </Typography>
+            {inner}
             <Typography align="center" variant={"body2"}>
                 {this.state.lobby.creatorId === this.props.user.id ? <Button onClick={this.startGame}>Start</Button> : "Waiting for the lobby owner to start the game."}
             </Typography>
