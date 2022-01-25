@@ -153,7 +153,7 @@ func (gc *GameController) EndTurn(c echo.Context) error {
 		(*lobby.Board.Squares)[index].Tile.Draggable = false
 	}
 
-	gc.db.Order("joined_at").Find(&lobby.Members)
+	gc.db.Order("joined_at").Where("member_type = 'player'").Find(&lobby.Members)
 
 	for i, member := range lobby.Members {
 		if member.UserID == *lobby.PlayerTurnID {
