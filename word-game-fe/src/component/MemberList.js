@@ -9,17 +9,63 @@ export default class MemberList extends React.Component {
 
 
     channel;
+    interval;
     state = {
         members: []
     }
 
-    async componentDidMount(){
+
+    constructor(props){
+        super(props);
+        this.onMessage = this.onMessage.bind(this);
+        this.updatePresence = this.updatePresence.bind(this);
+    }
+
+    componentDidMount(){
+        // The user ID is not immediately available
+        if(!this.props.user?.id)return;
+        this.setupPresence();
+    }
+
+
+    componentDidUpdate(lastProps, lastState, snapshot){
+        if(lastProps.user === this.props.user || this.channel)return;
+        this.setupPresence();
+    }
+
+    async setupPresence(){
         const {data: members} = await defAxios.get(`lobby/${this.props.lobbyId}/member`)
         this.setState({members});
         this.channel = this.props.realtime.channels.get(`lobby-${this.props.lobbyId}`);
-        this.channel.presence.enter();
+
+        this.channel.presence.enterClient(""+this.props.user.id);
+
+        this.updatePresence();
+
+        // Update presence every 5 seconds to keep it in sync
+        if(!this.interval)
+            this.interval = setInterval(this.updatePresence, 5000)
+
+        this.channel.presence.subscribe("enter", this.updateMemberState("online"));
+        this.channel.presence.subscribe("leave", this.updateMemberState("offline"));
+
+        this.channel.subscribe(this.onMessage);
+    }
+
+    onMessage(message) {
+        console.log(message);
+        switch (message.name) {
+            case "memberAdd":
+                this.setState((state)=>{
+                    state.members.push(message.data)
+                    return state;
+                });
+                break;
+        }
+    }
+
+    updatePresence(){
         this.channel.presence.get((err, members)=>{
-            console.log("Get members", err, members, this.state.members);
             let enrichedMembers = this.state.members.map((member)=>{
                 // noinspection EqualityComparisonWithCoercionJS
                 let presence = members.find((m)=>m.clientId == member.id)
@@ -28,17 +74,12 @@ export default class MemberList extends React.Component {
             })
             this.setState({members: enrichedMembers})
         });
-
-        this.channel.presence.subscribe("enter", this.updateMemberState("online"));
-        this.channel.presence.subscribe("leave", this.updateMemberState("offline"));
-
-        // TODO memberJoin/memberLeave events
-
     }
 
     componentWillUnmount() {
         this.channel.presence.unsubscribe("enter", this.updateMemberState("online"));
         this.channel.presence.unsubscribe("leave", this.updateMemberState("offline"));
+        clearInterval(this.interval);
     }
 
     updateMemberState(state){

@@ -12,6 +12,6 @@ export default ({realtime, user})=>{
     return <div id="lobby">
         <GameWindow realtime={realtime} lobbyId={lobbyId} user={user}/>
         <Chat realtime={realtime} lobbyId={lobbyId}/>
-        <MemberList realtime={realtime} lobbyId={lobbyId}/>
+        <MemberList realtime={realtime} lobbyId={lobbyId} user={user}/>
     </div>
 }

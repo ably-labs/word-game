@@ -52,22 +52,6 @@ func NewTileBag() entity.SquareSet {
 	return entity.SquareSet{Squares: &bag}
 }
 
-const boardLayout = "~--@---~---@--~" +
-	"-#---!---!---#-" +
-	"--#---@-@---#--" +
-	"@--#---@---#--@" +
-	"----#-----#----" +
-	"-!---!---!---!-" +
-	"--@---@-@---@--" +
-	"~--@---*---@--~" +
-	"--@---@-@---@--" +
-	"-!---!---!---!-" +
-	"----#-----#----" +
-	"@--#---@---#--@" +
-	"--#---@-@---#--" +
-	"-#---!---!---#-" +
-	"~--#---~---#--~"
-
 var boardMap = map[rune]entity.Square{
 	'-': {},
 	'~': {Bonus: &entity.Bonus{WordMultiplier: 3}},
@@ -117,7 +101,7 @@ func NewBoardFromFunc(width int, height int, creator layout.BoardLayout) entity.
 }
 
 func NewBoard(width int, height int) entity.SquareSet {
-	return NewBoardFromFunc(width, height, layout.BoardLayoutRegular{})
+	return NewBoardFromFunc(width, height, layout.BoardLayoutStripe{})
 }
 
 func TakeFromBag(n int, bag *entity.SquareSet) []entity.Square {

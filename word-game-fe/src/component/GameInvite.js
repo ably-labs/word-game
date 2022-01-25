@@ -12,7 +12,7 @@ export default ({lobbyId})=>{
         navigator.clipboard.writeText(ref.current.value);
     }
 
-    return <TextField value={`https://wg.unacc.eu/${lobbyId}`} inputRef={ref} InputProps={{endAdornment: <InputAdornment position="end">
+    return <TextField value={`${process.env.REACT_APP_INVITE_URL}${lobbyId}`} inputRef={ref} InputProps={{endAdornment: <InputAdornment position="end">
             <IconButton edge="end" onClick={copy}>
                 <ContentCopy/>
             </IconButton>

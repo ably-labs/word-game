@@ -36,8 +36,6 @@ export default class Chat extends React.Component {
                 this.setState({messages: this.state.messages.concat(message.data)}, ()=>this.anchor.current.scrollIntoView())
                 break;
         }
-
-        // TODO memberJoin/memberLeave events
     }
 
 
@@ -50,7 +48,7 @@ export default class Chat extends React.Component {
     render(){
         return <div id="chat">
             <div id="chatHistory">
-                {this.state.messages.map((m,i)=><ChatMessage {...m} key={`message-${i}`}/>)}
+                {this.state.messages.map((m,i)=><ChatMessage {...m} key={`message-${i}`} members={this.state.members}/>)}
                 <div ref={this.anchor}/>
             </div>
             <div id="chatControls">

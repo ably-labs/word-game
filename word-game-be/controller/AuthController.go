@@ -17,6 +17,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -29,16 +30,31 @@ type AuthController struct {
 func NewAuthController(e *echo.Group, db *gorm.DB, ably *ably.Realtime) *AuthController {
 	feRoot := os.Getenv("FRONTEND_BASE_URL")
 	//beRoot := os.Getenv("BACKEND_BASE_URL")
-	web, err := webauthn.New(&webauthn.Config{
-		RPDisplayName: "Word Game",
-		RPID:          "localhost",
-		RPOrigin:      fmt.Sprintf("http://%s/", feRoot),
-		RPIcon:        fmt.Sprintf("http://%s/letter_w.png", feRoot),
-		AuthenticatorSelection: protocol.AuthenticatorSelection{
-			RequireResidentKey: protocol.ResidentKeyUnrequired(),
-			UserVerification:   protocol.VerificationDiscouraged,
-		},
-	})
+	var config *webauthn.Config
+	if strings.Contains(feRoot, "localhost") {
+		config = &webauthn.Config{
+			RPDisplayName: "Word Game",
+			RPID:          "localhost",
+			RPOrigin:      fmt.Sprintf("http://%s/", feRoot),
+			RPIcon:        fmt.Sprintf("http://%s/letter_w.png", feRoot),
+			AuthenticatorSelection: protocol.AuthenticatorSelection{
+				RequireResidentKey: protocol.ResidentKeyUnrequired(),
+				UserVerification:   protocol.VerificationDiscouraged,
+			},
+		}
+	} else {
+		config = &webauthn.Config{
+			RPDisplayName: "Word Game",
+			RPID:          "petermaguire.xyz",
+			RPOrigin:      fmt.Sprintf("https://%s/", feRoot),
+			RPIcon:        fmt.Sprintf("https://%s/letter_w.png", feRoot),
+			AuthenticatorSelection: protocol.AuthenticatorSelection{
+				RequireResidentKey: protocol.ResidentKeyUnrequired(),
+				UserVerification:   protocol.VerificationDiscouraged,
+			},
+		}
+	}
+	web, err := webauthn.New(config)
 	if err != nil {
 		log.Fatalln(err)
 	}

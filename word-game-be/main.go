@@ -83,7 +83,7 @@ func main() {
 	controller.NewGameController(e.Group("game"), db, ablyClient)
 
 	// Start the web server
-	e.Logger.Fatal(e.Start(":3001"))
+	e.Logger.Fatal(e.Start("127.0.0.1:3123"))
 }
 
 func initAbly() *ably.Realtime {

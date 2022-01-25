@@ -16,7 +16,7 @@ func ValidateLobby(handlerFunc echo.HandlerFunc) echo.HandlerFunc {
 			return c.JSON(400, entity.ErrInvalidLobby)
 		}
 
-		castLobbyId := uint32(lobbyId)
+		castLobbyId := int64(lobbyId)
 
 		lobby := model.Lobby{ID: &castLobbyId}
 		err = db.Preload("GameType").Find(&lobby).Error

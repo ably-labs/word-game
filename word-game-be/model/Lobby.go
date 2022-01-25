@@ -6,7 +6,9 @@ import (
 )
 
 type Lobby struct {
-	ID             *uint32           `gorm:"primarykey" json:"id"`
+	ID *int64 `gorm:"primarykey" json:"-"`
+	// Poor JS gets upset with numbers this big, so we need to pass it as a string rather than an int64
+	IdStr          string            `gorm:"-" json:"id"`
 	Name           string            `json:"name"`
 	CreatorID      *uint32           `json:"creatorId"`
 	CreatedAt      time.Time         `json:"createdAt"`

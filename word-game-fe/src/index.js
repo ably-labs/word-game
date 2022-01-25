@@ -4,7 +4,7 @@ import App from './App';
 import {BrowserRouter} from "react-router-dom";
 
 ReactDOM.render(
-    <BrowserRouter>
+    <BrowserRouter basename={"/wordgame"}>
         <App />
     </BrowserRouter>,
   document.getElementById('root')

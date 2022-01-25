@@ -94,11 +94,9 @@ class GameWindow extends React.Component {
     }
 
     componentDidUpdate(prevProps, prevState, snapshot){
-        console.log("Component update");
         if(this.props.user && prevProps.user?.id !== this.props.user.id){
             this.initLobby();
         }
-        console.log(prevProps.user, this.props.user);
     }
 
     onMessage(message){
@@ -170,7 +168,7 @@ class GameWindow extends React.Component {
                 <IconButton title="Swap" onClick={this.swapTiles}><SwapVertIcon/></IconButton>
             </div>
             <Board handleTileDrop={this.handleTileDrop} board={this.state.boards["deck"]} name={"deck"} debug={this.state.debug}/>
-            <SwapTilesDialog open={true} keepDeck={this.state.boards.deck} swapDeck={this.state.boards.swap} debug={this.state.debug} handleTileDrop={this.handleTileDrop}/>
+            <SwapTilesDialog open={this.state.openDialog === dialog.SWAP_TILES} keepDeck={this.state.boards.deck} swapDeck={this.state.boards.swap} debug={this.state.debug} handleTileDrop={this.handleTileDrop}/>
         </div>
     }
 

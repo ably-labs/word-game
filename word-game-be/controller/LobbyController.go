@@ -11,6 +11,7 @@ import (
 	"github.com/ably/ably-go/ably"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
+	"strconv"
 	"time"
 )
 
@@ -99,6 +100,11 @@ func (lc *LobbyController) PostGameType(c echo.Context) error {
 func (lc *LobbyController) GetLobbies(c echo.Context) error {
 	var lobbies []model.Lobby
 	lc.db.Preload("GameType").Preload("Creator").Find(&lobbies)
+
+	for i := range lobbies {
+		lobbies[i].IdStr = strconv.Itoa(int(*lobbies[i].ID))
+	}
+
 	return c.JSON(200, lobbies)
 }
 
@@ -149,6 +155,8 @@ func (lc *LobbyController) PostLobby(c echo.Context) error {
 		return c.JSON(500, entity.ErrDatabaseError)
 	}
 
+	newLobby.IdStr = strconv.Itoa(int(*newLobby.ID))
+
 	newLobbyMember := &model.LobbyMember{
 		UserID:     *user.ID,
 		LobbyID:    *newLobby.ID,
@@ -177,7 +185,7 @@ func (lc *LobbyController) PostLobby(c echo.Context) error {
 
 func (lc *LobbyController) GetLobbyThumbnail(c echo.Context) error {
 	// TODO: Store a temporary thumbnail somewhere here that is occasionally regenerated
-	return c.File("/home/peter/IdeaProjects/word-game/word-game-be/static/thumbnail-placeholder.png")
+	return c.File("/home/peter/wordgame/static/thumbnail-placeholder.png")
 }
 
 func (lc *LobbyController) PutMember(c echo.Context) error {
@@ -238,6 +246,12 @@ func (lc *LobbyController) PutMember(c echo.Context) error {
 		Message: fmt.Sprintf("%s joined the game", user.Name),
 		Author:  "system",
 	})
+
+	lobbyMember.User = model.DisplayUser{
+		ID:   user.ID,
+		Name: user.Name,
+	}
+
 	_ = util.PublishLobbyMessage(lc.ably, lobby.ID, "memberAdd", lobbyMember)
 
 	return c.NoContent(204)

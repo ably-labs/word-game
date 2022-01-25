@@ -14,19 +14,21 @@ import CreateLobby from "./page/CreateLobby";
 function App() {
     const [user, setUser] = useState({})
     const realtime =  new Ably.Realtime({
-        authUrl: process.env.REACT_APP_BACKEND_BASE_URL+"/auth/token",
-        authMethod: "GET",
-        autoConnect: false,
-        authHeaders: {
-            // Ably does not require manually setting withCredentials,
-            // so adding 'authorization' here is needed to force withCredentials
-            // in order to use cookie auth
-            authorization: "required",
-        }
+        key: process.env.REACT_APP_ABLY_KEY,
+        // authUrl: process.env.REACT_APP_BACKEND_BASE_URL+"/auth/token",
+        // authMethod: "GET",
+        // autoConnect: false,
+        // authHeaders: {
+        //     authorization: "required",
+        // }
     });
 
 
     useEffect(()=>{
+        realtime.connection.on("connected", ()=>{
+            console.log("Connected!");
+        })
+
         defAxios.get("auth/me").then(({data: currentUser})=>{
             onSignIn(currentUser);
         }).catch(()=>null)
@@ -38,10 +40,6 @@ function App() {
         realtime.connection.connect()
 
     }
-
-    realtime.connection.on("connected", ()=>{
-        console.log("Connected!");
-    })
 
     return (
         <>
