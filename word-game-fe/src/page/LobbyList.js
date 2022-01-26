@@ -1,10 +1,9 @@
 import React from "react";
 import Grid from "@mui/material/Grid";
 import LobbyPreview from "../component/LobbyPreview";
-import {useEffect, useState} from "react";
 import defAxios from "../Http";
 import LobbySkeleton from "../component/LobbySkeleton";
-import {Box, Button, Card, CardActions, CardContent, Container, Fab, Paper, Typography} from "@mui/material";
+import {Button, Card, CardActions, CardContent, Container, Fab, Paper, Typography} from "@mui/material";
 import AddIcon from '@mui/icons-material/Add';
 
 export default class LobbyList extends React.Component {
@@ -13,6 +12,8 @@ export default class LobbyList extends React.Component {
         lobbies: null,
         joined: null,
     }
+
+    channel;
 
     constructor(props){
         super(props);
@@ -27,9 +28,13 @@ export default class LobbyList extends React.Component {
             joinMap[joined[i].lobbyId] = joined[i]
         }
         this.setState({lobbies, joined: joinMap});
-        const channel = this.props.realtime.channels.get("lobby-list");
+        this.channel = this.props.realtime.channels.get("lobby-list");
         console.log("Subscribing to channel");
-        channel.subscribe(this.onMessage);
+        this.channel.subscribe(this.onMessage);
+    }
+
+    componentWillUnmount() {
+        this.channel.unsubscribe(this.onMessage)
     }
 
     onMessage(message){
