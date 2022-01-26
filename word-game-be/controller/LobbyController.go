@@ -29,6 +29,7 @@ func NewLobbyController(e *echo.Group, db *gorm.DB, ably *ably.Realtime) *LobbyC
 
 	e.GET("", lc.GetLobbies)
 	e.POST("", lc.PostLobby, middleware.RequireAuthorisation)
+	e.GET("/joined", lc.GetJoinedLobbies, middleware.RequireAuthorisation)
 
 	e.GET("/types", lc.GetGameTypes)
 	e.POST("/types", lc.PostGameType, middleware.RequireAuthorisation)
@@ -44,6 +45,14 @@ func NewLobbyController(e *echo.Group, db *gorm.DB, ably *ably.Realtime) *LobbyC
 	lobbyGroup.PATCH("/member", lc.PatchMember, middleware.RequireLobbyMember)
 
 	return &lc
+}
+
+func (lc *LobbyController) GetJoinedLobbies(c echo.Context) error {
+	user := c.Get("user").(*model.User)
+
+	lc.db.Where("user_id = ?", user.ID).Find(&user.LobbyMemberships)
+
+	return c.JSON(200, user.LobbyMemberships)
 }
 
 func (lc *LobbyController) PatchLobby(c echo.Context) error {
@@ -284,7 +293,7 @@ func (lc *LobbyController) PutMember(c echo.Context) error {
 		Author:  "system",
 	})
 
-	lobbyMember.User = model.DisplayUser{
+	lobbyMember.User = &model.DisplayUser{
 		ID:   user.ID,
 		Name: user.Name,
 	}

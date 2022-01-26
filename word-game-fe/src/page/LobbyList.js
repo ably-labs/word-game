@@ -10,7 +10,8 @@ import AddIcon from '@mui/icons-material/Add';
 export default class LobbyList extends React.Component {
 
     state = {
-        lobbies: null
+        lobbies: null,
+        joined: null,
     }
 
     constructor(props){
@@ -20,7 +21,12 @@ export default class LobbyList extends React.Component {
 
     async componentDidMount(){
         const {data: lobbies} = await defAxios.get("lobby");
-        this.setState({lobbies});
+        const {data: joined} = await defAxios.get("lobby/joined");
+        let joinMap = {};
+        for(let i = 0; i < joined.length; i++){
+            joinMap[joined[i].lobbyId] = joined[i]
+        }
+        this.setState({lobbies, joined: joinMap});
         const channel = this.props.realtime.channels.get("lobby-list");
         console.log("Subscribing to channel");
         channel.subscribe(this.onMessage);
@@ -44,7 +50,7 @@ export default class LobbyList extends React.Component {
 
         }else if(this.state.lobbies.length > 0){
             inner = this.state.lobbies.map((lobby, i)=><Grid item xs={2} key={`lobby-${i}`}>
-                <LobbyPreview lobby={lobby}/>
+                <LobbyPreview lobby={lobby} joined={this.state.joined[lobby.id]}/>
             </Grid>)
         }else{
             inner = <Grid item xs={6}>

@@ -10,7 +10,7 @@ type LobbyMember struct {
 	UserID     uint32              `gorm:"primaryKey;autoIncrement:false" json:"id"`
 	LobbyID    int64               `gorm:"primaryKey;autoIncrement:false" json:"lobbyId"`
 	MemberType constant.MemberType `json:"type"`
-	User       DisplayUser         `json:"user"`
+	User       *DisplayUser        `json:"user,omitempty"`
 	Deck       entity.SquareSet    `json:"-"`
 	JoinedAt   time.Time           `gorm:"default:CURRENT_TIMESTAMP" json:"joined"`
 	Score      int                 `json:"score" gorm:"default:0"`

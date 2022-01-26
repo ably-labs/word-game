@@ -8,13 +8,14 @@ import (
 )
 
 type User struct {
-	ID             *uint32               `gorm:"primarykey" json:"id"`
-	Name           string                `json:"name"`
-	CreatedAt      time.Time             `json:"createdAt"`
-	UpdatedAt      time.Time             `json:"updatedAt"`
-	LastActive     time.Time             `gorm:"default:CURRENT_TIMESTAMP" json:"lastActive"`
-	Credentials    datatypes.JSON        `gorm:"type:json" gob:"-" json:"-"`
-	CredentialsObj []webauthn.Credential `gorm:"-" gob:"-" json:"-"`
+	ID               *uint32               `gorm:"primarykey" json:"id"`
+	Name             string                `json:"name"`
+	CreatedAt        time.Time             `json:"createdAt"`
+	UpdatedAt        time.Time             `json:"updatedAt"`
+	LastActive       time.Time             `gorm:"default:CURRENT_TIMESTAMP" json:"lastActive"`
+	Credentials      datatypes.JSON        `gorm:"type:json" gob:"-" json:"-"`
+	CredentialsObj   []webauthn.Credential `gorm:"-" gob:"-" json:"-"`
+	LobbyMemberships *[]LobbyMember        `json:"memberships" gob:"-"  gorm:"foreignKey:user_id;references:id"`
 }
 
 func (u *User) WebAuthnID() []byte {
