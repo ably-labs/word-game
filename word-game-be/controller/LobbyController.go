@@ -220,6 +220,20 @@ func (lc *LobbyController) PutMember(c echo.Context) error {
 	lobby := c.Get("lobby").(*model.Lobby)
 	user := c.Get("user").(*model.User)
 
+	// Check if the game is already in progress and the user is trying to join as a real user
+	if lobby.State == entity.LobbyInGame && putUser.Type != constant.MemberTypeSpectator {
+		return c.JSON(400, entity.ErrGameInProgress)
+	}
+
+	lobbyMember := model.LobbyMember{UserID: *user.ID, LobbyID: *lobby.ID}
+
+	lc.db.Find(&lobbyMember)
+
+	// Check if the user is already a player or if they are trying to join as the member they currently are
+	if lobbyMember.MemberType == constant.MemberTypePlayer || lobbyMember.MemberType == putUser.Type {
+		return c.JSON(400, entity.ErrLobbyJoined)
+	}
+
 	// TODO: Codes
 	if lobby.Private {
 		return c.JSON(404, entity.ErrLobbyNotFound)
@@ -235,12 +249,13 @@ func (lc *LobbyController) PutMember(c echo.Context) error {
 		}
 	}
 
-	lobbyMember := &model.LobbyMember{
+	lobbyMember = model.LobbyMember{
 		UserID:     *user.ID,
 		LobbyID:    *lobby.ID,
 		MemberType: putUser.Type,
 	}
 
+	// If they are a player, create a tile deck for them and take from the bag
 	if lobbyMember.MemberType == constant.MemberTypePlayer {
 		newDeck := util.TakeFromBag(7, &lobby.Bag)
 		squares := make([]entity.Square, 9)
@@ -252,7 +267,7 @@ func (lc *LobbyController) PutMember(c echo.Context) error {
 		lobbyMember.Deck.AddTiles(newDeck)
 	}
 
-	err = lc.db.Save(lobbyMember).Error
+	err = lc.db.Save(&lobbyMember).Error
 
 	if err != nil {
 		fmt.Println(err)
