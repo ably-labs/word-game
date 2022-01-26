@@ -117,7 +117,22 @@ func (lc *LobbyController) GetLobbies(c echo.Context) error {
 
 func (lc *LobbyController) GetLobby(c echo.Context) error {
 	// TODO: Private lobbies should require membership
-	return c.JSON(200, c.Get("lobby"))
+	lobby := c.Get("lobby").(*model.Lobby)
+	user := c.Get("user").(*model.User)
+
+	lobbyMember := model.LobbyMember{UserID: *user.ID, LobbyID: *lobby.ID}
+
+	err := lc.db.Find(&lobbyMember).Error
+
+	if err != nil {
+		return c.JSON(500, entity.ErrDatabaseError)
+	}
+
+	if lobbyMember.MemberType == "" {
+		return c.JSON(403, entity.ErrLobbyNotJoined)
+	}
+
+	return c.JSON(200, lobby)
 }
 
 func (lc *LobbyController) PostLobby(c echo.Context) error {

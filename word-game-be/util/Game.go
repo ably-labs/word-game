@@ -101,7 +101,7 @@ func NewBoardFromFunc(width int, height int, creator layout.BoardLayout) entity.
 }
 
 func NewBoard(width int, height int) entity.SquareSet {
-	return NewBoardFromFunc(width, height, layout.BoardLayoutStripe{})
+	return NewBoardFromFunc(width, height, layout.BoardLayoutRegular{})
 }
 
 func TakeFromBag(n int, bag *entity.SquareSet) []entity.Square {

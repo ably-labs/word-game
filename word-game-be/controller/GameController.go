@@ -138,7 +138,7 @@ func (gc *GameController) EndTurn(c echo.Context) error {
 		Author:  "system",
 	})
 
-	_ = util.PublishLobbyMessage(gc.ably, lobby.ID, "scoreUpdate", lobbyMember.Score)
+	_ = util.PublishLobbyMessage(gc.ably, lobby.ID, "scoreUpdate", lobbyMember)
 
 	remainingTiles := lobbyMember.Deck.TileCount()
 
@@ -154,6 +154,8 @@ func (gc *GameController) EndTurn(c echo.Context) error {
 	}
 
 	gc.db.Order("joined_at").Where("member_type = 'player'").Find(&lobby.Members)
+
+	fmt.Println(lobby.Members)
 
 	for i, member := range lobby.Members {
 		if member.UserID == *lobby.PlayerTurnID {

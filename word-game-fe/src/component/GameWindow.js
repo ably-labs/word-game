@@ -39,7 +39,6 @@ class GameWindow extends React.Component {
         showOnePlayerWarning: false,
         showJoinWarning: false,
         boards: {},
-        lobby: {},
     }
 
     constructor(props){
@@ -53,27 +52,19 @@ class GameWindow extends React.Component {
         this.pass = this.pass.bind(this);
         this.toggleDebug = this.toggleDebug.bind(this);
         this.startGame = this.startGame.bind(this);
-        this.joinGame = this.joinGame.bind(this);
-        this.startSpectating = this.startSpectating.bind(this);
-        this.backToLobby = this.backToLobby.bind(this);
-        this.joinGame = this.joinGame.bind(this);
-        this.startSpectating.bind(this);
     }
 
     componentDidMount(){
-       if(this.props.user)this.initLobby();
-        this.channel = this.props.realtime.channels.get(`lobby-${this.props.lobbyId}`);
-        console.log("Subscribing to messages");
-        this.channel.subscribe(this.onMessage)
+        if(!this.props.lobby.id || !this.props.channel)return;
+        if(this.props.user)this.initLobby();
+        this.props.channel.subscribe(this.onMessage)
     }
 
     async initLobby(){
-        const {data: lobby} = await defAxios.get(`lobby/${this.props.lobbyId}`, {validateStatus: ()=>true});
-        if(lobby.err){
-            this.setState({})
-            return;
-        }
-        const {data: boards} = await defAxios.get(`game/${this.props.lobbyId}/boards`);
+        console.log("init lobby")
+        console.log(this.props.lobby);
+
+        const {data: boards} = await defAxios.get(`game/${this.props.lobby.id}/boards`);
         if(boards.deck) {
             boards.swap = {
                 width: boards.deck.width,
@@ -81,30 +72,34 @@ class GameWindow extends React.Component {
                 squares: boards.deck.squares.map(()=>({tile: null}))
             }
         }
-        this.setState({boards, lobby})
+        this.setState({boards})
     }
 
     async fetchBoards(){
-        const {data: boards} = await defAxios.get(`game/${this.props.lobbyId}/boards`);
+        const {data: boards} = await defAxios.get(`game/${this.props.lobby.id}/boards`);
         this.setState({boards});
     }
 
     componentWillUnmount() {
-        this.channel.unsubscribe(this.onMessage);
+        this.props.channel.unsubscribe(this.onMessage);
     }
 
     componentDidUpdate(prevProps, prevState, snapshot){
         if(this.props.user && prevProps.user?.id !== this.props.user.id){
             this.initLobby();
         }
+
+        if(prevProps.lobby !== this.props.lobby){
+            this.fetchBoards();
+            this.props.channel.subscribe(this.onMessage)
+        }
     }
 
     onMessage(message){
-        console.log(message);
         switch(message.name){
             case "moveTile":
+                if(this.isTurn())return;
                 const {move, tile} = message.data;
-                console.log(move, tile);
                 this.setState((state)=>{
                     if(move.to !== "deck")
                         state.boards[move.to].squares[move.toIndex].tile = tile;
@@ -113,23 +108,14 @@ class GameWindow extends React.Component {
                     return {boards: state.boards}
                 })
                 break;
-            case "memberAdd":
-                this.setState((state)=>{
-                    state.lobby.currentPlayers++
-                    return {lobby: state.lobby};
-                })
-                break;
-            case "lobbyUpdate":
-                this.setState({lobby: message.data});
-                break;
         }
     }
 
     isTurn(){
-        return this.state.lobby.playerTurnId !== this.props.user.id
+        return this.props.lobby.playerTurnId === this.props.user.id
     }
     render() {
-        switch(this.state.lobby?.state){
+        switch(this.props.lobby?.state){
             case "inGame":
                 return this.renderInGame();
             case "waiting":
@@ -137,7 +123,7 @@ class GameWindow extends React.Component {
             case undefined:
                 return this.renderLoading();
             default:
-                return <div>Unknown state {this.state.lobby.state}</div>
+                return <div>Unknown state {this.props.lobby.state}</div>
         }
 
     }
@@ -145,30 +131,30 @@ class GameWindow extends React.Component {
     renderLoading(){
         return <Box sx={{flexGrow: 1}}>
             <Typography align="center">Loading...</Typography>
-            <JoinGameDialog open={this.state.openDialog === dialog.JOIN}/>
+            <JoinGameDialog open={this.state.openDialog === dialog.JOIN} joinGame={this.joinGame} startSpectating={this.startSpectating}/>
         </Box>
     }
 
     renderWaiting(){
         let inner;
-        if(this.state.lobby.currentPlayers < this.state.lobby.maxPlayers){
+        if(this.props.lobby.currentPlayers < this.props.lobby.maxPlayers){
             inner = <>
-                <Typography align="center" variant="h5">Waiting for players ({this.state.lobby.currentPlayers}/{this.state.lobby.maxPlayers})</Typography>
+                <Typography align="center" variant="h5">Waiting for players ({this.props.lobby.currentPlayers}/{this.props.lobby.maxPlayers})</Typography>
                 <Typography align="center">Invite players with this URL:</Typography>
                 <Typography align="center">
-                    <GameInvite lobbyId={this.props.lobbyId}/>
+                    <GameInvite lobbyId={this.props.lobby.id}/>
                 </Typography>
             </>
         }else{
             inner =  <>
                 <Typography align="center" variant="h5">Lobby is Full</Typography>
-                {this.state.lobby.creatorId === this.props.user.id  && <Typography align="center">Start the game when you're ready</Typography>}
+                {this.props.lobby.creatorId === this.props.user.id  && <Typography align="center">Start the game when you're ready</Typography>}
             </>
         }
         return <Box sx={{flexGrow: 1}}>
             {inner}
             <Typography align="center" variant={"body2"}>
-                {this.state.lobby.creatorId === this.props.user.id ? <Button onClick={this.startGame}>Start</Button> : "Waiting for the lobby owner to start the game."}
+                {this.props.lobby.creatorId === this.props.user.id ? <Button onClick={this.startGame}>Start</Button> : "Waiting for the lobby owner to start the game."}
             </Typography>
             <OnePlayerDialog open={this.state.openDialog === dialog.ONE_PLAYER} startGame={this.startGame} clearDialog={this.clearDialog}/>
         </Box>
@@ -179,25 +165,25 @@ class GameWindow extends React.Component {
             <Board handleTileDrop={this.handleTileDrop} board={this.state.boards["main"]} name={"main"} debug={this.state.debug}/>
             <div id="boardControls">
                 <div>
-                    <Button disabled={this.isTurn()} onClick={this.play}>Play</Button>
-                    <Button disabled={this.isTurn()} onClick={this.pass}>Pass</Button>
+                    <Button disabled={!this.isTurn()} onClick={this.play}>Play</Button>
+                    <Button disabled={!this.isTurn()} onClick={this.pass}>Pass</Button>
                     <Button onClick={this.toggleDebug}>Debug</Button>
                 </div>
                 <IconButton title="Recall" onClick={this.recallTiles}><KeyboardDoubleArrowDownIcon/></IconButton>
                 <IconButton title="Shuffle" onClick={this.shuffleTiles}><ShuffleIcon/></IconButton>
                 <IconButton title="Swap" onClick={this.swapTiles}><SwapVertIcon/></IconButton>
             </div>
-            <Board handleTileDrop={this.handleTileDrop} board={this.state.boards["deck"]} name={"deck"} debug={this.state.debug}/>
+            {this.state.boards.deck && <Board handleTileDrop={this.handleTileDrop} board={this.state.boards.deck} name={"deck"} debug={this.state.debug}/>}
             <SwapTilesDialog open={this.state.openDialog === dialog.SWAP_TILES} keepDeck={this.state.boards.deck} swapDeck={this.state.boards.swap} debug={this.state.debug} handleTileDrop={this.handleTileDrop}/>
         </div>
     }
 
 
     async handleTileDrop(from, fromIndex, to, toIndex){
-        if(!this.isTurn() && (from === "board" || to === "board"))return;
+        if(!this.isTurn() && (from === "board" || to === "board"))return console.log("Ignoring invalid turn");
         console.log(`Moving ${from}#${fromIndex} -> ${to}#${toIndex}`);
         if(to !== "swap" && from !== "swap") {
-            let result = await defAxios.patch(`game/${this.props.lobbyId}/boards`, {from, fromIndex, to, toIndex})
+            let result = await defAxios.patch(`game/${this.props.lobby.id}/boards`, {from, fromIndex, to, toIndex})
             if (result.data.err) return console.log("Couldn't move tile", result.data.err);
         }
         this.setState((state)=>{
@@ -231,7 +217,7 @@ class GameWindow extends React.Component {
     }
 
     async play(){
-       let result = await defAxios.post(`game/${this.props.lobbyId}/boards`);
+       let result = await defAxios.post(`game/${this.props.lobby.id}/boards`);
        console.log(result);
        await this.fetchBoards();
     }
@@ -254,28 +240,17 @@ class GameWindow extends React.Component {
     }
 
     async startGame(){
-        if(!this.state.showOnePlayerWarning && this.state.lobby.currentPlayers === 1){
+        if(!this.state.showOnePlayerWarning && this.props.lobby.currentPlayers === 1){
             return this.setState({showOnePlayerWarning: true});
         }
 
-        let {data: lobby} = await defAxios.patch(`lobby/${this.props.lobbyId}`, {
+        let {data: lobby} = await defAxios.patch(`lobby/${this.props.lobby.id}`, {
             state: "inGame",
         })
 
         return this.setState({showOnePlayerWarning: false, lobby});
     }
 
-    backToLobby(){
-
-    }
-
-    startSpectating(){
-    }
-
-    async joinGame(){
-        await defAxios.put(`lobby/${this.props.lobbyId}/member`, {type: "player"});
-        this.initLobby();
-    }
 
 }
 

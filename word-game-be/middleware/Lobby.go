@@ -27,6 +27,9 @@ func ValidateLobby(handlerFunc echo.HandlerFunc) echo.HandlerFunc {
 		if err != nil {
 			return c.JSON(500, entity.ErrDatabaseError)
 		}
+
+		lobby.IdStr = strconv.Itoa(int(*lobby.ID))
+
 		c.Set("lobby", &lobby)
 
 		return handlerFunc(c)
