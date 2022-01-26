@@ -10,6 +10,8 @@
     user-select: none;
 }
 
+
+
 .tile[draggable=true] .letter {
     color: #444444;
 }
@@ -67,3 +69,11 @@
 .drag {
     filter: brightness(140%);
 }
+.tile.selector {
+    cursor: pointer;
+}
+
+.tile.selector:hover .letter {
+    color: black;
+}
+

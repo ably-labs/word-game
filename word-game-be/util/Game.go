@@ -1,6 +1,7 @@
 package util
 
 import (
+	"errors"
 	"fmt"
 	"github.com/ably-labs/word-game/word-game-be/entity"
 	"github.com/ably-labs/word-game/word-game-be/util/layout"
@@ -41,6 +42,7 @@ func NewTileBag() entity.SquareSet {
 			bag[i] = entity.Square{Tile: &entity.Tile{
 				Letter: letter,
 				Score:  score[letter],
+				Blank:  letter == "",
 			}}
 		}
 		cursor += amt
@@ -131,13 +133,14 @@ func GetPlacedTileIndices(squareSet entity.SquareSet) []int {
 	return indices
 }
 
-func ValidateBoard(squareSet entity.SquareSet) int {
-
-	newWords := GetNewWords(squareSet)
+func ValidateBoard(squareSet entity.SquareSet) (int, error) {
+	newWords, valid := GetNewWords(squareSet)
 
 	if len(newWords) == 0 {
-		// Invalid placement or no tiles placed
-		return 0
+		if valid {
+			return 0, nil
+		}
+		return 0, errors.New("tiles must be connected and in a straight line")
 	}
 
 	totalScore := 0
@@ -151,20 +154,28 @@ func ValidateBoard(squareSet entity.SquareSet) int {
 			multiplier += GetSquareWordMultiplier(*square)
 		}
 		if !IsValidWord(constructedWord) {
-			fmt.Println("Invalid word: ", constructedWord)
-			return 0
+			return 0, fmt.Errorf("'%s' is not a valid word", constructedWord)
 		}
 		fmt.Println(constructedWord, score, multiplier)
 		totalScore += score * multiplier
 	}
-	return totalScore
+	return totalScore, nil
 }
 
-func GetNewWords(squareSet entity.SquareSet) [][]*entity.Square {
+func GetNewWords(squareSet entity.SquareSet) ([][]*entity.Square, bool) {
 	indices := GetPlacedTileIndices(squareSet)
+
+	if len(indices) == 0 {
+		return [][]*entity.Square{}, true
+	}
 
 	fmt.Println("Checking placed tile indices...")
 	for _, index := range indices {
+		// Blank tile placed with no substitute
+		if (*squareSet.Squares)[index].Tile.Letter == "" {
+			return [][]*entity.Square{}, false
+		}
+
 		if (*squareSet.Squares)[index].Tile == nil {
 			fmt.Println("Placed Tile index ", index, "is nil")
 		}
@@ -174,6 +185,8 @@ func GetNewWords(squareSet entity.SquareSet) [][]*entity.Square {
 		// If the first and second tiles are on the same row, this must be a horizontal word
 		isHoz := GetRowStart(squareSet, indices[0]) == GetRowStart(squareSet, indices[1])
 		originalWord := GetSquaresForWord(squareSet, indices[0], isHoz)
+
+		fmt.Println("Original word", originalWord)
 
 		// Check every single draggable tile is inside the original word
 		seenCount := 0
@@ -190,7 +203,7 @@ func GetNewWords(squareSet entity.SquareSet) [][]*entity.Square {
 
 		// If there are less draggable tiles inside the original word, the placement is invalid
 		if seenCount < len(indices) {
-			return [][]*entity.Square{}
+			return [][]*entity.Square{}, false
 		}
 
 		words := [][]*entity.Square{
@@ -210,7 +223,7 @@ func GetNewWords(squareSet entity.SquareSet) [][]*entity.Square {
 			}
 		}
 
-		return words
+		return words, true
 	}
 
 	words := make([][]*entity.Square, 0)
@@ -226,7 +239,7 @@ func GetNewWords(squareSet entity.SquareSet) [][]*entity.Square {
 		}
 	}
 
-	return words
+	return words, len(words) > 0
 }
 
 func GetSquaresForWord(squareSet entity.SquareSet, index int, isHoz bool) []*entity.Square {

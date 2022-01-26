@@ -96,11 +96,26 @@ func (gc *GameController) PatchBoard(c echo.Context) error {
 		return c.JSON(400, entity.ErrInvalidInput)
 	}
 
+	// No tile exists where we're taking from
+	if (*fromBoard.Squares)[moveTile.FromIndex].Tile == nil {
+		return c.JSON(400, entity.ErrInvalidPlay)
+	}
+
+	// Trying to use a non-blank tile as a blank tile
+	if moveTile.Letter != "" && !(*fromBoard.Squares)[moveTile.FromIndex].Tile.Blank {
+		return c.JSON(400, entity.ErrInvalidInput)
+	}
+
 	if (*toBoard.Squares)[moveTile.ToIndex].Tile != nil {
 		return c.JSON(400, entity.ErrTileOccupied)
 	}
 
 	(*toBoard.Squares)[moveTile.ToIndex].Tile = (*fromBoard.Squares)[moveTile.FromIndex].Tile
+
+	if moveTile.Letter != "" {
+		(*toBoard.Squares)[moveTile.ToIndex].Tile.Letter = moveTile.Letter
+	}
+
 	(*fromBoard.Squares)[moveTile.FromIndex].Tile = nil
 
 	if boardUpdate {
@@ -125,32 +140,37 @@ func (gc *GameController) EndTurn(c echo.Context) error {
 	lobby := c.Get("lobby").(*model.Lobby)
 	lobbyMember := c.Get("lobbyMember").(*model.LobbyMember)
 
-	score := util.ValidateBoard(lobby.Board)
+	score, err := util.ValidateBoard(lobby.Board)
 
-	if score == 0 {
-		return c.JSON(400, entity.ErrInvalidPlay)
+	if err != nil {
+		return c.JSON(400, entity.Error{Err: err.Error()})
 	}
 
-	lobbyMember.Score += score
+	// don't bother updating anything if this was a pass
+	if score > 0 {
+		lobbyMember.Score += score
+		_ = util.PublishLobbyMessage(gc.ably, lobby.ID, "message", entity.ChatSent{
+			Message: fmt.Sprintf("<@%d> scored %d points", lobbyMember.UserID, score),
+			Author:  "system",
+		})
+		_ = util.PublishLobbyMessage(gc.ably, lobby.ID, "scoreUpdate", lobbyMember)
+		remainingTiles := lobbyMember.Deck.TileCount()
 
-	_ = util.PublishLobbyMessage(gc.ably, lobby.ID, "message", entity.ChatSent{
-		Message: fmt.Sprintf("<@%d> scored %d points", lobbyMember.UserID, score),
-		Author:  "system",
-	})
+		if len(*lobby.Bag.Squares) > 0 {
+			lobbyMember.Deck.AddTiles(util.TakeFromBag(7-remainingTiles, &lobby.Bag))
+		}
 
-	_ = util.PublishLobbyMessage(gc.ably, lobby.ID, "scoreUpdate", lobbyMember)
+		fmt.Println("Deck length", len(*lobbyMember.Deck.Squares))
 
-	remainingTiles := lobbyMember.Deck.TileCount()
-
-	if len(*lobby.Bag.Squares) > 0 {
-		lobbyMember.Deck.AddTiles(util.TakeFromBag(7-remainingTiles, &lobby.Bag))
-	}
-
-	fmt.Println("Deck length", len(*lobbyMember.Deck.Squares))
-
-	indices := util.GetPlacedTileIndices(lobby.Board)
-	for _, index := range indices {
-		(*lobby.Board.Squares)[index].Tile.Draggable = false
+		indices := util.GetPlacedTileIndices(lobby.Board)
+		for _, index := range indices {
+			(*lobby.Board.Squares)[index].Tile.Draggable = false
+		}
+	} else {
+		_ = util.PublishLobbyMessage(gc.ably, lobby.ID, "message", entity.ChatSent{
+			Message: fmt.Sprintf("<@%d> passed", lobbyMember.UserID),
+			Author:  "system",
+		})
 	}
 
 	gc.db.Order("joined_at").Where("member_type = 'player' AND lobby_id = ?", lobby.ID).Find(&lobby.Members)
@@ -159,9 +179,12 @@ func (gc *GameController) EndTurn(c echo.Context) error {
 
 	for i, member := range lobby.Members {
 		if member.UserID == *lobby.PlayerTurnID {
+			fmt.Println("Current player has the turn", lobby.PlayerTurnID)
 			if i == len(lobby.Members)-1 {
-				*lobby.PlayerTurnID = lobby.Members[i+0].UserID
+				fmt.Println("New member index", 0)
+				*lobby.PlayerTurnID = lobby.Members[0].UserID
 			} else {
+				fmt.Println("new member index", i+1)
 				*lobby.PlayerTurnID = lobby.Members[i+1].UserID
 			}
 			break

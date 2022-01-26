@@ -26,6 +26,7 @@ type Tile struct {
 	Letter    string `json:"letter"`
 	Score     int    `json:"score"`
 	Draggable bool   `json:"draggable,omitempty"`
+	Blank     bool   `json:"blank,omitempty"`
 }
 
 // SquareSet exists to make GORM happy about using the JSON datatype

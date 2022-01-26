@@ -5,4 +5,5 @@ type MoveTile struct {
 	FromIndex int    `json:"fromIndex"`
 	To        string `json:"to"`
 	ToIndex   int    `json:"toIndex"`
+	Letter    string `json:"letter,omitempty"`
 }

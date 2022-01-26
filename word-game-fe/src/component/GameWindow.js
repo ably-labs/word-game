@@ -22,13 +22,16 @@ import JoinGameDialog from "./dialog/JoinGameDialog";
 import OnePlayerDialog from "./dialog/OnePlayerDialog";
 import Board from "./Board";
 import SwapTilesDialog from "./dialog/SwapTilesDialog";
+import InvalidPlacementDialog from "./dialog/InvalidPlacementDialog";
+import BlankTileDialog from "./dialog/BlankTileDialog";
 
 
 const dialog = {
     ONE_PLAYER: "one_player",
     JOIN: "join",
     SWAP_TILES: "swap_tiles",
-    BLANK_TILE: "blank_tiles"
+    BLANK_TILE: "blank_tiles",
+    INVALID_PLACEMENT: "invalid_placement"
 }
 
 class GameWindow extends React.Component {
@@ -39,6 +42,8 @@ class GameWindow extends React.Component {
         showOnePlayerWarning: false,
         showJoinWarning: false,
         boards: {},
+        blankData: {},
+        placementError: "",
     }
 
     constructor(props){
@@ -52,6 +57,8 @@ class GameWindow extends React.Component {
         this.pass = this.pass.bind(this);
         this.toggleDebug = this.toggleDebug.bind(this);
         this.startGame = this.startGame.bind(this);
+        this.clearDialog = this.clearDialog.bind(this);
+        this.setBlankTile = this.setBlankTile.bind(this);
     }
 
     componentDidMount(){
@@ -175,12 +182,19 @@ class GameWindow extends React.Component {
             </div>
             {this.state.boards.deck && <Board handleTileDrop={this.handleTileDrop} board={this.state.boards.deck} name={"deck"} debug={this.state.debug}/>}
             <SwapTilesDialog open={this.state.openDialog === dialog.SWAP_TILES} keepDeck={this.state.boards.deck} swapDeck={this.state.boards.swap} debug={this.state.debug} handleTileDrop={this.handleTileDrop}/>
+            <InvalidPlacementDialog open={this.state.openDialog === dialog.INVALID_PLACEMENT} clearDialog={this.clearDialog} error={this.state.placementError}/>
+            <BlankTileDialog open={this.state.openDialog === dialog.BLANK_TILE} clearDialog={this.clearDialog} setBlankTile={this.setBlankTile}/>
         </div>
     }
 
 
     async handleTileDrop(from, fromIndex, to, toIndex){
-        if(!this.isTurn() && (from === "board" || to === "board"))return console.log("Ignoring invalid turn");
+        if(!this.isTurn() && (from === "main" || to === "main"))return console.log("Ignoring invalid turn");
+        console.log(this.state.boards[from].squares[fromIndex].tile?.blank, to);
+        if(to === "main" && this.state.boards[from].squares[fromIndex].tile?.blank){
+            this.setState({openDialog: dialog.BLANK_TILE, blankData: {from, fromIndex, to, toIndex}})
+            return
+        }
         console.log(`Moving ${from}#${fromIndex} -> ${to}#${toIndex}`);
         if(to !== "swap" && from !== "swap") {
             let result = await defAxios.patch(`game/${this.props.lobby.id}/boards`, {from, fromIndex, to, toIndex})
@@ -217,8 +231,13 @@ class GameWindow extends React.Component {
     }
 
     async play(){
-       let result = await defAxios.post(`game/${this.props.lobby.id}/boards`);
-       console.log(result);
+       let result = await defAxios.post(`game/${this.props.lobby.id}/boards`, null, {validateStatus: ()=>true});
+       if(result.data?.err){
+           console.log("Error time");
+           result.data.err = result.data.err[0].toUpperCase()+result.data.err.substring(1);
+           this.setState({openDialog: dialog.INVALID_PLACEMENT, placementError: result.data.err});
+           return;
+       }
        await this.fetchBoards();
     }
 
@@ -251,6 +270,19 @@ class GameWindow extends React.Component {
         return this.setState({showOnePlayerWarning: false, lobby});
     }
 
+
+    async setBlankTile(letter){
+        await defAxios.patch(`game/${this.props.lobby.id}/boards`, {...this.state.blankData, letter})
+        const {to, toIndex, from, fromIndex} = this.state.blankData;
+        this.setState((state)=>{
+            state.boards[to].squares[toIndex].tile = {
+                ...state.boards[from].squares[fromIndex].tile,
+                letter
+            }
+            state.boards[from].squares[fromIndex].tile = null;
+            return {boards: state.boards, openDialog: null}
+        })
+    }
 
 }
 
