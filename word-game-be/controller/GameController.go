@@ -153,7 +153,7 @@ func (gc *GameController) EndTurn(c echo.Context) error {
 		(*lobby.Board.Squares)[index].Tile.Draggable = false
 	}
 
-	gc.db.Order("joined_at").Where("member_type = 'player'").Find(&lobby.Members)
+	gc.db.Order("joined_at").Where("member_type = 'player' AND lobby_id = ?", lobby.ID).Find(&lobby.Members)
 
 	fmt.Println(lobby.Members)
 
