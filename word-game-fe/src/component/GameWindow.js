@@ -24,6 +24,8 @@ import Board from "./Board";
 import SwapTilesDialog from "./dialog/SwapTilesDialog";
 import InvalidPlacementDialog from "./dialog/InvalidPlacementDialog";
 import BlankTileDialog from "./dialog/BlankTileDialog";
+import LobbyDeleted from "./dialog/LobbyDeletedDialog";
+import LobbyDeletedDialog from "./dialog/LobbyDeletedDialog";
 
 
 const dialog = {
@@ -31,7 +33,8 @@ const dialog = {
     JOIN: "join",
     SWAP_TILES: "swap_tiles",
     BLANK_TILE: "blank_tiles",
-    INVALID_PLACEMENT: "invalid_placement"
+    INVALID_PLACEMENT: "invalid_placement",
+    LOBBY_DELETED: "lobby_deleted",
 }
 
 class GameWindow extends React.Component {
@@ -59,6 +62,8 @@ class GameWindow extends React.Component {
         this.startGame = this.startGame.bind(this);
         this.clearDialog = this.clearDialog.bind(this);
         this.setBlankTile = this.setBlankTile.bind(this);
+        this.resetGame = this.resetGame.bind(this);
+        this.endGame = this.endGame.bind(this);
     }
 
     componentDidMount(){
@@ -68,9 +73,6 @@ class GameWindow extends React.Component {
     }
 
     async initLobby(){
-        console.log("init lobby")
-        console.log(this.props.lobby);
-
         const {data: boards} = await defAxios.get(`game/${this.props.lobby.id}/boards`);
         if(boards.deck) {
             boards.swap = {
@@ -115,14 +117,18 @@ class GameWindow extends React.Component {
                     return {boards: state.boards}
                 })
                 break;
+            case "lobbyDeleted":
+                this.setState({openDialog: dialog.LOBBY_DELETED})
         }
     }
 
     isTurn(){
-        return this.props.lobby.playerTurnId === this.props.user.id
+        return this.props.lobby.state === "inGame" && this.props.lobby.playerTurnId === this.props.user.id
     }
     render() {
         switch(this.props.lobby?.state){
+            case "roundOver":
+                return this.renderGameOver();
             case "inGame":
                 return this.renderInGame();
             case "waiting":
@@ -133,6 +139,21 @@ class GameWindow extends React.Component {
                 return <div>Unknown state {this.props.lobby.state}</div>
         }
 
+    }
+
+
+    renderGameOver(){
+        return <Box sx={{flexGrow: 1}}>
+            <Typography align="center" variant="h5">Game Over...</Typography>
+            <Typography align="center"><b>{this.props.members.find((m)=>m.id ===this.props.lobby.playerTurnId)?.user.name}</b> is the winner!</Typography>
+            <Typography align="center">Start a new game or end the game</Typography>
+            {this.props.lobby.creatorId === this.props.user.id ? <Typography align="center">
+                <Button onClick={this.resetGame}>Continue</Button>
+                <Button onClick={this.endGame}>Quit</Button>
+            </Typography> : "Waiting for the lobby owner to make a choice."}
+
+
+        </Box>
     }
 
     renderLoading(){
@@ -184,6 +205,7 @@ class GameWindow extends React.Component {
             <SwapTilesDialog open={this.state.openDialog === dialog.SWAP_TILES} keepDeck={this.state.boards.deck} swapDeck={this.state.boards.swap} debug={this.state.debug} handleTileDrop={this.handleTileDrop}/>
             <InvalidPlacementDialog open={this.state.openDialog === dialog.INVALID_PLACEMENT} clearDialog={this.clearDialog} error={this.state.placementError}/>
             <BlankTileDialog open={this.state.openDialog === dialog.BLANK_TILE} clearDialog={this.clearDialog} setBlankTile={this.setBlankTile}/>
+            <LobbyDeletedDialog open={this.state.openDialog === dialog.LOBBY_DELETED}/>
         </div>
     }
 
@@ -258,18 +280,26 @@ class GameWindow extends React.Component {
         this.setState({openDialog: null});
     }
 
+
+    async setLobbyState(state){
+        let {data: lobby} = await defAxios.patch(`lobby/${this.props.lobby.id}`, {state})
+        return this.setState({showOnePlayerWarning: false, lobby});
+    }
+
     async startGame(){
         if(!this.state.showOnePlayerWarning && this.props.lobby.currentPlayers === 1){
             return this.setState({showOnePlayerWarning: true});
         }
-
-        let {data: lobby} = await defAxios.patch(`lobby/${this.props.lobby.id}`, {
-            state: "inGame",
-        })
-
-        return this.setState({showOnePlayerWarning: false, lobby});
+        return this.setLobbyState("inGame")
     }
 
+    async resetGame(){
+        return this.setLobbyState("waiting")
+    }
+
+    async endGame(){
+        await defAxios.delete(`lobby/${this.props.lobby.id}`)
+    }
 
     async setBlankTile(letter){
         await defAxios.patch(`game/${this.props.lobby.id}/boards`, {...this.state.blankData, letter})

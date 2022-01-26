@@ -37,6 +37,7 @@ func NewLobbyController(e *echo.Group, db *gorm.DB, ably *ably.Realtime) *LobbyC
 	// Endpoints which require a valid lobby
 	lobbyGroup := e.Group("/:id", middleware.RequireAuthorisation, middleware.ValidateLobby)
 	lobbyGroup.GET("", lc.GetLobby)
+	lobbyGroup.DELETE("", lc.DeleteLobby, middleware.RequireLobbyOwner)
 	lobbyGroup.PATCH("", lc.PatchLobby, middleware.RequireLobbyOwner)
 	lobbyGroup.GET("/thumbnail", lc.GetLobbyThumbnail)
 	lobbyGroup.PUT("/member", lc.PutMember)
@@ -85,6 +86,20 @@ func (lc *LobbyController) PatchLobby(c echo.Context) error {
 
 	return c.JSON(200, lobby)
 
+}
+
+func (lc *LobbyController) DeleteLobby(c echo.Context) error {
+	lobby := c.Get("lobby").(*model.Lobby)
+
+	err := lc.db.Delete(&lobby).Error
+
+	if err != nil {
+		return c.JSON(500, err)
+	}
+
+	_ = util.PublishLobbyMessage(lc.ably, lobby.ID, "lobbyDeleted", nil)
+
+	return c.NoContent(204)
 }
 
 func (lc *LobbyController) GetGameTypes(c echo.Context) error {

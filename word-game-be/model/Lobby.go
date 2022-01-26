@@ -20,8 +20,8 @@ type Lobby struct {
 	GameTypeID     uint32            `json:"-"`
 	PlayerTurnID   *uint32           `json:"playerTurnId"`
 	GameType       GameType          `json:"gameType"`
-	Members        []LobbyMember     `json:"-"`
-	Messages       []Message         `json:"-"`
+	Members        []LobbyMember     `json:"-" gorm:"constraint:OnDelete:CASCADE;"`
+	Messages       []Message         `json:"-" gorm:"constraint:OnDelete:CASCADE;"`
 	Creator        DisplayUser       `json:"creator" gorm:"foreignKey:id;references:creator_id"`
 	Board          entity.SquareSet  `json:"-"`
 	Bag            entity.SquareSet  `json:"-"`

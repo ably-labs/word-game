@@ -11,6 +11,7 @@ import (
 	"github.com/ably/ably-go/ably"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
+	"sort"
 )
 
 type GameController struct {
@@ -146,6 +147,8 @@ func (gc *GameController) EndTurn(c echo.Context) error {
 		return c.JSON(400, entity.Error{Err: err.Error()})
 	}
 
+	gc.db.Order("joined_at").Where("member_type = 'player' AND lobby_id = ?", lobby.ID).Find(&lobby.Members)
+
 	// don't bother updating anything if this was a pass
 	if score > 0 {
 		lobbyMember.Score += score
@@ -158,14 +161,24 @@ func (gc *GameController) EndTurn(c echo.Context) error {
 
 		if len(*lobby.Bag.Squares) > 0 {
 			lobbyMember.Deck.AddTiles(util.TakeFromBag(7-remainingTiles, &lobby.Bag))
+		} else if remainingTiles == 0 {
+			lobby.State = entity.LobbyRoundOver
+			sort.Slice(lobby.Members, func(i, j int) bool {
+				return lobby.Members[i].Score < lobby.Members[j].Score
+			})
+			// Set winner to current turn
+			*lobby.PlayerTurnID = lobby.Members[0].UserID
+			_ = util.PublishLobbyMessage(gc.ably, lobby.ID, "message", entity.ChatSent{
+				Message: fmt.Sprintf("Game over, <@%d> wins!", *lobby.PlayerTurnID),
+				Author:  "system",
+			})
 		}
-
-		fmt.Println("Deck length", len(*lobbyMember.Deck.Squares))
 
 		indices := util.GetPlacedTileIndices(lobby.Board)
 		for _, index := range indices {
 			(*lobby.Board.Squares)[index].Tile.Draggable = false
 		}
+
 	} else {
 		_ = util.PublishLobbyMessage(gc.ably, lobby.ID, "message", entity.ChatSent{
 			Message: fmt.Sprintf("<@%d> passed", lobbyMember.UserID),
@@ -173,25 +186,21 @@ func (gc *GameController) EndTurn(c echo.Context) error {
 		})
 	}
 
-	gc.db.Order("joined_at").Where("member_type = 'player' AND lobby_id = ?", lobby.ID).Find(&lobby.Members)
-
-	fmt.Println(lobby.Members)
-
-	for i, member := range lobby.Members {
-		if member.UserID == *lobby.PlayerTurnID {
-			fmt.Println("Current player has the turn", lobby.PlayerTurnID)
-			if i == len(lobby.Members)-1 {
-				fmt.Println("New member index", 0)
-				*lobby.PlayerTurnID = lobby.Members[0].UserID
-			} else {
-				fmt.Println("new member index", i+1)
-				*lobby.PlayerTurnID = lobby.Members[i+1].UserID
+	// If we're still in play, set the next turn
+	if lobby.State == entity.LobbyInGame {
+		for i, member := range lobby.Members {
+			if member.UserID == *lobby.PlayerTurnID {
+				if i == len(lobby.Members)-1 {
+					*lobby.PlayerTurnID = lobby.Members[0].UserID
+				} else {
+					*lobby.PlayerTurnID = lobby.Members[i+1].UserID
+				}
+				break
 			}
-			break
 		}
+		fmt.Println("It is now this players turn ", *lobby.PlayerTurnID)
 	}
 
-	fmt.Println("It is now this players turn ", *lobby.PlayerTurnID)
 	_ = util.PublishLobbyMessage(gc.ably, lobby.ID, "lobbyUpdate", lobby)
 
 	gc.db.Save(&lobbyMember)

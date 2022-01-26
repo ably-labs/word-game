@@ -125,7 +125,7 @@ export default ({realtime, user})=>{
 
 
     return <div id="lobby">
-        <GameWindow realtime={realtime} lobby={lobby} user={user} channel={channel}/>
+        <GameWindow realtime={realtime} lobby={lobby} members={members} user={user} channel={channel}/>
         <Chat realtime={realtime} lobbyId={lobbyId} members={members} channel={channel}/>
         <MemberList realtime={realtime} lobby={lobby} members={members} memberPresence={memberPresence} user={user} channel={channel}/>
     </div>
