@@ -8,7 +8,8 @@ import (
 
 type LobbyMember struct {
 	UserID     uint32              `gorm:"primaryKey;autoIncrement:false" json:"id"`
-	LobbyID    int64               `gorm:"primaryKey;autoIncrement:false;constraint:OnDelete:CASCADE;" json:"lobbyId"`
+	LobbyID    int64               `gorm:"primaryKey;autoIncrement:false;constraint:OnDelete:CASCADE;" json:"-"`
+	LobbyIDStr string              `gorm:"-" json:"lobbyId"`
 	MemberType constant.MemberType `json:"type"`
 	User       *DisplayUser        `json:"user,omitempty"`
 	Deck       entity.SquareSet    `json:"-"`

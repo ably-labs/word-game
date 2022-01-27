@@ -219,8 +219,13 @@ class GameWindow extends React.Component {
         }
         console.log(`Moving ${from}#${fromIndex} -> ${to}#${toIndex}`);
         if(to !== "swap" && from !== "swap") {
-            let result = await defAxios.patch(`game/${this.props.lobby.id}/boards`, {from, fromIndex, to, toIndex})
-            if (result.data.err) return console.log("Couldn't move tile", result.data.err);
+            defAxios.patch(`game/${this.props.lobby.id}/boards`, {from, fromIndex, to, toIndex}).catch(()=>{
+                this.setState((state)=>{
+                    state.boards[from].squares[fromIndex].tile = state.boards[to].squares[toIndex].tile
+                    state.boards[to].squares[toIndex].tile = null;
+                    return {boards: state.boards}
+                })
+            })
         }
         this.setState((state)=>{
             state.boards[to].squares[toIndex].tile = state.boards[from].squares[fromIndex].tile
@@ -283,12 +288,12 @@ class GameWindow extends React.Component {
 
     async setLobbyState(state){
         let {data: lobby} = await defAxios.patch(`lobby/${this.props.lobby.id}`, {state})
-        return this.setState({showOnePlayerWarning: false, lobby});
+        return this.setState({openDialog: null, lobby});
     }
 
     async startGame(){
-        if(!this.state.showOnePlayerWarning && this.props.lobby.currentPlayers === 1){
-            return this.setState({showOnePlayerWarning: true});
+        if(!this.state.openDialog && this.props.lobby.currentPlayers === 1){
+            return this.setState({openDialog: dialog.ONE_PLAYER});
         }
         return this.setLobbyState("inGame")
     }

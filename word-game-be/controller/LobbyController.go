@@ -53,6 +53,10 @@ func (lc *LobbyController) GetJoinedLobbies(c echo.Context) error {
 
 	lc.db.Where("user_id = ?", user.ID).Find(&user.LobbyMemberships)
 
+	for i, lm := range *user.LobbyMemberships {
+		(*user.LobbyMemberships)[i].LobbyIDStr = strconv.Itoa(int(lm.LobbyID))
+	}
+
 	return c.JSON(200, user.LobbyMemberships)
 }
 

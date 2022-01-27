@@ -127,8 +127,8 @@ func (gc *GameController) PatchBoard(c echo.Context) error {
 		})
 	}
 
-	gc.db.Save(&lobby)
-	gc.db.Save(&lobbyMember)
+	go gc.db.Save(&lobby)
+	go gc.db.Save(&lobbyMember)
 
 	return c.NoContent(204)
 }

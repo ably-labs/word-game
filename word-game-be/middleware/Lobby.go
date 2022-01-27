@@ -11,14 +11,12 @@ import (
 func ValidateLobby(handlerFunc echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		db := c.Get("db").(*gorm.DB)
-		lobbyId, err := strconv.Atoi(c.Param("id"))
+		lobbyId, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
 			return c.JSON(400, entity.ErrInvalidLobby)
 		}
 
-		castLobbyId := int64(lobbyId)
-
-		lobby := model.Lobby{ID: &castLobbyId}
+		lobby := model.Lobby{ID: &lobbyId}
 		err = db.Preload("GameType").Find(&lobby).Error
 
 		if err == gorm.ErrRecordNotFound {
