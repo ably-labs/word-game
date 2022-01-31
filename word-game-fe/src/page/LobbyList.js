@@ -10,7 +10,7 @@ export default class LobbyList extends React.Component {
 
     state = {
         lobbies: null,
-        joined: null,
+        joined: [],
     }
 
     channel;
@@ -22,19 +22,33 @@ export default class LobbyList extends React.Component {
 
     async componentDidMount(){
         const {data: lobbies} = await defAxios.get("lobby");
+        this.setState({lobbies});
+        this.channel = this.props.realtime.channels.get("lobby-list");
+        console.log("Subscribing to channel");
+        this.channel.subscribe(this.onMessage);
+        if(this.props.user)
+            return this.getJoinedLobbies();
+    }
+
+
+    async getJoinedLobbies(){
         const {data: joined} = await defAxios.get("lobby/joined");
         let joinMap = {};
         for(let i = 0; i < joined.length; i++){
             joinMap[joined[i].lobbyId] = joined[i]
         }
-        this.setState({lobbies, joined: joinMap});
-        this.channel = this.props.realtime.channels.get("lobby-list");
-        console.log("Subscribing to channel");
-        this.channel.subscribe(this.onMessage);
+        this.setState({joined: joinMap});
     }
 
     componentWillUnmount() {
         this.channel.unsubscribe(this.onMessage)
+    }
+
+
+    componentDidUpdate(prevProps, prevState, ss){
+        if(this.props.user !== prevProps.user){
+            return this.getJoinedLobbies();
+        }
     }
 
     onMessage(message){

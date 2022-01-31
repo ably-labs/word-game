@@ -133,9 +133,17 @@ func (lc *LobbyController) PostGameType(c echo.Context) error {
 }
 
 func (lc *LobbyController) GetLobbies(c echo.Context) error {
+	user, ok := c.Get("user").(*model.User)
 	var lobbies []model.Lobby
-	lc.db.Preload("GameType").Preload("Creator").Find(&lobbies)
+	query := lc.db.Preload("GameType").Preload("Creator").Order("state")
 
+	if ok && user != nil {
+		query = query.Where("private = false OR id IN (SELECT lobby_id FROM lobby_members WHERE user_id = ?)", *user.ID)
+	} else {
+		query = query.Where("private = false")
+	}
+
+	query.Find(&lobbies)
 	for i := range lobbies {
 		lobbies[i].IdStr = strconv.Itoa(int(*lobbies[i].ID))
 	}
@@ -260,11 +268,6 @@ func (lc *LobbyController) PutMember(c echo.Context) error {
 	// Check if the user is already a player or if they are trying to join as the member they currently are
 	if lobbyMember.MemberType == constant.MemberTypePlayer || lobbyMember.MemberType == putUser.Type {
 		return c.JSON(400, entity.ErrLobbyJoined)
-	}
-
-	// TODO: Codes
-	if lobby.Private {
-		return c.JSON(404, entity.ErrLobbyNotFound)
 	}
 
 	if putUser.Type == constant.MemberTypePlayer {
