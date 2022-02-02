@@ -38,7 +38,6 @@ function App() {
         setUser(user);
         if(realtime.connection.state === "connected")return console.warn("Tried to connect when already connected");
         realtime.connection.connect()
-
     }
 
     return (

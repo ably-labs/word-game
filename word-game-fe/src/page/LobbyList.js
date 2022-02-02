@@ -10,7 +10,7 @@ export default class LobbyList extends React.Component {
 
     state = {
         lobbies: null,
-        joined: [],
+        joined: null,
     }
 
     channel;
@@ -57,37 +57,64 @@ export default class LobbyList extends React.Component {
                 console.log("Lobby add", message);
                 this.setState({lobbies: this.state.lobbies.concat(message.data)})
                 break;
+            case "lobbyUpdate":
+                this.setState((state)=>{
+                    let lind = state.lobbies.findIndex((l)=>l.id === message.data.id);
+                    if(lind > -1)
+                        state.lobbies[lind] = message.data;
+                    else
+                        state.lobbies.push(message.data);
+                    return {lobbies: state.lobbies};
+                })
         }
     }
 
-    render(){
-        let inner;
-        if(this.state.lobbies === null){
-            inner = Array(5).fill(1).map((a,i)=><Grid item xs={2} key={`lsk${i}`}>
+
+    mapLobby(joined){
+        return (lobby, i)=><Grid item xs={2} key={`lobby-${i}`}>
+            <LobbyPreview lobby={lobby} joined={joined} user={this.props.user}/>
+        </Grid>
+    }
+
+    renderInner(){
+        if(this.state.lobbies === null)
+            return <Grid container spacing={2}>{Array(5).fill(1).map((a,i)=><Grid item xs={2} key={`lsk${i}`}>
                 <LobbySkeleton/>
-            </Grid>)
+            </Grid>)}</Grid>
 
-        }else if(this.state.lobbies.length > 0){
-            inner = this.state.lobbies.map((lobby, i)=><Grid item xs={2} key={`lobby-${i}`}>
-                <LobbyPreview lobby={lobby} joined={this.state.joined[lobby.id]}/>
-            </Grid>)
-        }else{
-            inner = <Grid item xs={6}>
-                <Card sx={{maxWidth: 345}}>
-                    <CardContent>
-                        <Typography variant="h6">No public lobbies yet.</Typography>
-                        <Typography variant="body1">Why not create one?</Typography>
-                    </CardContent>
-                    <CardActions>
-                        <Button color="primary" href={"lobby/new"}>Create Lobby</Button>
-                    </CardActions>
-                </Card>
+        if(this.state.lobbies.length === 0)
+            return <Grid container spacing={2}>
+                <Grid item xs={6}>
+                    <Card sx={{maxWidth: 345}}>
+                        <CardContent>
+                            <Typography variant="h6">No public lobbies yet.</Typography>
+                            <Typography variant="body1">Why not create one?</Typography>
+                        </CardContent>
+                        <CardActions>
+                            <Button color="primary" href={"lobby/new"}>Create Lobby</Button>
+                        </CardActions>
+                    </Card>
+                </Grid>
             </Grid>
-        }
+        if(!this.state.joined)
+            return <Grid container spacing={2}>{this.state.lobbies.map(this.mapLobby(false))}</Grid>
 
-        return  <Container >
+        return <>
+            <Typography variant="h5">My Games</Typography>
+            <Grid container spacing={2}>
+                {this.state.lobbies.filter((l)=>this.state.joined[l.id]).map(this.mapLobby(true))}
+            </Grid>
+            <Typography variant="h5">New Games</Typography>
+            <Grid container spacing={2}>
+                {this.state.lobbies.filter((l)=>!this.state.joined[l.id]).map(this.mapLobby(false))}
+            </Grid>
+        </>
+    }
+
+    render(){
+        return <Container >
             <Typography variant={"h4"}>Word Game</Typography>
-            <Grid container spacing={2}>{inner}</Grid>
+            {this.renderInner()}
             <Fab color="primary" aria-label="add" sx={{position: "fixed", bottom: "3vh", right: "3vw"}} href={"lobby/new"}>
                 <AddIcon />
             </Fab>

@@ -1,15 +1,15 @@
 import {Button, Card, CardActionArea, CardActions, CardContent, CardMedia, Typography} from "@mui/material";
 import defAxios from "../Http";
 import { useNavigate } from "react-router-dom";
-
-
+import LockIcon from '@mui/icons-material/Lock';
+import NewReleasesIcon from '@mui/icons-material/NewReleases';
 const stateMap = {
     waiting: "Waiting for Players...",
     inGame: "In Game",
     roundOver: "Post-game"
 }
 
-export default ({lobby, joined})=>{
+export default ({lobby, joined, user})=>{
 
     const navigate = useNavigate();
 
@@ -46,13 +46,18 @@ export default ({lobby, joined})=>{
                 sx={{objectFit: "contain", background: "grey"}}
             />
             <CardContent>
-                <Typography gutterBottom variant="h5" component="div">
-                    {lobby.name}
+                <Typography gutterBottom variant="h6" component="div">
+                    {lobby.private ? <LockIcon fontSize="small"/> : ""}{lobby.name}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                     {lobby.currentPlayers}/{lobby.maxPlayers} players.<br/>
                     Game Type: {lobby.gameType.name}<br/>
                     <b>{stateMap[lobby.state]}</b>
+                    {lobby.state === "inGame" && lobby.playerTurnId === user?.id ? <Typography color="error"  style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                    }}><NewReleasesIcon/>&nbsp;Your Turn!</Typography> : ""}
                 </Typography>
             </CardContent>
         </CardActionArea>

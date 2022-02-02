@@ -129,6 +129,7 @@ func (gc *GameController) PatchBoard(c echo.Context) error {
 
 	go gc.db.Save(&lobby)
 	go gc.db.Save(&lobbyMember)
+	_ = util.LobbyListUpdate(gc.ably, lobby)
 
 	return c.NoContent(204)
 }
@@ -202,6 +203,7 @@ func (gc *GameController) EndTurn(c echo.Context) error {
 	}
 
 	_ = util.PublishLobbyMessage(gc.ably, lobby.ID, "lobbyUpdate", lobby)
+	_ = util.LobbyListUpdate(gc.ably, lobby)
 
 	gc.db.Save(&lobbyMember)
 	gc.db.Save(&lobby)

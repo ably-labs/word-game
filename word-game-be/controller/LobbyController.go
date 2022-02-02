@@ -85,8 +85,8 @@ func (lc *LobbyController) PatchLobby(c echo.Context) error {
 		Message: "Game has started!",
 		Author:  "system",
 	})
-
 	_ = util.PublishLobbyMessage(lc.ably, lobby.ID, "lobbyUpdate", lobby)
+	_ = util.LobbyListUpdate(lc.ably, lobby)
 
 	return c.JSON(200, lobby)
 
@@ -307,6 +307,7 @@ func (lc *LobbyController) PutMember(c echo.Context) error {
 
 	if lobbyMember.MemberType == constant.MemberTypePlayer {
 		lobby.CurrentPlayers++
+		_ = util.LobbyListUpdate(lc.ably, lobby)
 		lc.db.Save(lobby)
 	}
 
@@ -349,6 +350,7 @@ func (lc *LobbyController) DeleteMember(c echo.Context) error {
 
 	if lobbyMember.MemberType == constant.MemberTypePlayer {
 		lobby.CurrentPlayers--
+		_ = util.LobbyListUpdate(lc.ably, lobby)
 		lc.db.Save(lobby)
 	}
 
