@@ -90,7 +90,7 @@ export default ({onClose, open, onSignIn})=>{
         }
     }
 
-    const disabled = isRegistering || isLoggingIn || nickname.length === 0 || error.error;
+    const disabled = isRegistering || isLoggingIn || nickname.length === 0;
     return <Dialog onClose={onClose} open={open}>
         <DialogTitle>Login or Register</DialogTitle>
         <DialogContent>
