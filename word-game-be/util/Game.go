@@ -147,11 +147,21 @@ func ValidateBoard(squareSet entity.SquareSet) (int, error) {
 	for _, word := range newWords {
 		constructedWord := ""
 		score := 0
-		multiplier := 1
+		multiplier := 0
 		for _, square := range word {
 			constructedWord += square.Tile.Letter
-			score += GetSquareScore(*square)
-			multiplier += GetSquareWordMultiplier(*square)
+			squareScore := GetSquareScore(*square)
+			squareMult := GetSquareWordMultiplier(*square)
+			score += squareScore
+			// Multiplier is only applied if this tile was played this turn
+			if square.Tile.Draggable {
+				multiplier += squareMult
+			}
+			fmt.Printf("Square %s has score %d and multiplier %d. Total score/mult is now %d/%d\n", square.Tile.Letter, squareScore, squareMult, score, multiplier)
+		}
+		// Multiplier must be at least 1
+		if multiplier == 0 {
+			multiplier = 1
 		}
 		if !IsValidWord(constructedWord) {
 			return 0, fmt.Errorf("'%s' is not a valid word", constructedWord)
@@ -328,8 +338,8 @@ func GetSquareScore(square entity.Square) int {
 		return 0
 	}
 
-	// No bonus tile, so the score is the raw tile score
-	if square.Bonus == nil {
+	// No bonus tile or already played, so the score is the raw tile score
+	if square.Bonus == nil || !square.Tile.Draggable {
 		return square.Tile.Score
 	}
 

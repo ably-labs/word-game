@@ -181,8 +181,12 @@ func (gc *GameController) EndTurn(c echo.Context) error {
 		}
 
 	} else {
+		message := fmt.Sprintf("<@%d> passed", lobbyMember.UserID)
+		if lobbyMember.UserID != *lobby.PlayerTurnID {
+			message = fmt.Sprintf("<@%d> was skipped", *lobby.PlayerTurnID)
+		}
 		_ = util.PublishLobbyMessage(gc.ably, lobby.ID, "message", entity.ChatSent{
-			Message: fmt.Sprintf("<@%d> passed", lobbyMember.UserID),
+			Message: message,
 			Author:  "system",
 		})
 	}
