@@ -151,8 +151,6 @@ class GameWindow extends React.Component {
                 <Button onClick={this.resetGame}>Continue</Button>
                 <Button onClick={this.endGame}>Quit</Button>
             </Typography> : "Waiting for the lobby owner to make a choice."}
-
-
         </Box>
     }
 
@@ -197,9 +195,9 @@ class GameWindow extends React.Component {
                     <Button disabled={!this.isTurn()} onClick={this.pass}>Pass</Button>
                     <Button onClick={this.toggleDebug}>Debug</Button>
                 </div>
-                <IconButton title="Recall" onClick={this.recallTiles}><KeyboardDoubleArrowDownIcon/></IconButton>
-                <IconButton title="Shuffle" onClick={this.shuffleTiles}><ShuffleIcon/></IconButton>
-                <IconButton title="Swap" onClick={this.swapTiles}><SwapVertIcon/></IconButton>
+                {/*<IconButton title="Recall" onClick={this.recallTiles}><KeyboardDoubleArrowDownIcon/></IconButton>*/}
+                {/*<IconButton title="Shuffle" onClick={this.shuffleTiles}><ShuffleIcon/></IconButton>*/}
+                {/*<IconButton title="Swap" onClick={this.swapTiles}><SwapVertIcon/></IconButton>*/}
             </div>
             {this.state.boards.deck && <Board handleTileDrop={this.handleTileDrop} board={this.state.boards.deck} name={"deck"} debug={this.state.debug}/>}
             <SwapTilesDialog open={this.state.openDialog === dialog.SWAP_TILES} keepDeck={this.state.boards.deck} swapDeck={this.state.boards.swap} debug={this.state.debug} handleTileDrop={this.handleTileDrop}/>
@@ -221,6 +219,8 @@ class GameWindow extends React.Component {
         if(to !== "swap" && from !== "swap") {
             defAxios.patch(`game/${this.props.lobby.id}/boards`, {from, fromIndex, to, toIndex}).catch(()=>{
                 this.setState((state)=>{
+                    if(!state.boards[from].squares[fromIndex])
+                        state.boards[from].squares[fromIndex] = {};
                     state.boards[from].squares[fromIndex].tile = state.boards[to].squares[toIndex].tile
                     state.boards[to].squares[toIndex].tile = null;
                     return {boards: state.boards}
@@ -228,6 +228,8 @@ class GameWindow extends React.Component {
             })
         }
         this.setState((state)=>{
+            if(!state.boards[to].squares[toIndex])
+                state.boards[to].squares[toIndex] = {};
             state.boards[to].squares[toIndex].tile = state.boards[from].squares[fromIndex].tile
             state.boards[from].squares[fromIndex].tile = null;
             return {boards: state.boards}
@@ -303,7 +305,7 @@ class GameWindow extends React.Component {
     }
 
     async endGame(){
-        await defAxios.delete(`lobby/${this.props.lobby.id}`)
+        await defAxios.delete(`lobby/${this.props.lobby.id}/member`)
     }
 
     async setBlankTile(letter){

@@ -57,6 +57,9 @@ export default class LobbyList extends React.Component {
                 console.log("Lobby add", message);
                 this.setState({lobbies: this.state.lobbies.concat(message.data)})
                 break;
+            case "lobbyRemove":
+                this.setState({lobbies: this.state.lobbies.filter((l)=>l.id !== message.data.id)})
+                break;
             case "lobbyUpdate":
                 this.setState((state)=>{
                     let lind = state.lobbies.findIndex((l)=>l.id === message.data.id);
@@ -66,6 +69,7 @@ export default class LobbyList extends React.Component {
                         state.lobbies.push(message.data);
                     return {lobbies: state.lobbies};
                 })
+                break;
         }
     }
 

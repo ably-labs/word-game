@@ -71,33 +71,33 @@ export default ()=>{
         <FormGroup>
             <FormControlLabel control={<Checkbox checked={isPrivate} onChange={(e)=>setPrivate(e.target.checked)} />} label="Private Lobby" />
         </FormGroup>
-        <FormGroup>
-            <InputLabel>Game Type</InputLabel>
-            <Select value={customGameType ? -1 : gameTypeIndex} label="Game Type" onChange={changeGameType}>
-                {gameTypes.map((gt)=> <MenuItem value={gt.id}>{gt.name}</MenuItem>)}
-                <MenuItem value={-1}>Custom</MenuItem>
-            </Select>
-            <hr/>
-            <Typography variant="h5">Game Properties</Typography>
-            <FormControlLabel disabled={!customGameType} control={<Checkbox value={gameTypeData.enableBlankTiles} />} label="Enable Blank Tiles" />
-            <FormControlLabel disabled={!customGameType} control={<Checkbox value={gameTypeData.startAnywhere}/>} label="Start Anywhere" />
-        </FormGroup>
-        <FormGroup>
-            <Box>
-                <Typography>Board Size</Typography>
-                <TextField disabled={!customGameType} margin="normal" label="Width" type="number" value={gameTypeData.boardWidth}/>
-                <TextField disabled={!customGameType} margin="normal" label="Height" type="number" value={gameTypeData.boardHeight}/>
-            </Box>
-            <TextField disabled={!customGameType} margin="normal" label="Bag Size" type="number" value={gameTypeData.tileBagSize}/>
-            <TextField disabled={!customGameType} margin="normal" label="Deck Size" type="number" value={gameTypeData.playerDeckSize}/>
-            <TextField disabled={!customGameType} margin="normal" label="Tile Count" type="number" value={gameTypeData.playerTileCount}/>
-            <Select disabled={!customGameType} margin="normal" value={gameTypeData.bonusTilePattern || "regular"} label="Game Type">
-                <MenuItem value="none">None</MenuItem>
-                <MenuItem value="regular">Regular</MenuItem>
-                <MenuItem value="stripe">Stripe</MenuItem>
-                <MenuItem value="border">Border</MenuItem>
-            </Select>
-        </FormGroup>
+        {/*<FormGroup>*/}
+        {/*    <InputLabel>Game Type</InputLabel>*/}
+        {/*    <Select value={customGameType ? -1 : gameTypeIndex} label="Game Type" onChange={changeGameType}>*/}
+        {/*        {gameTypes.map((gt)=> <MenuItem value={gt.id}>{gt.name}</MenuItem>)}*/}
+        {/*        <MenuItem value={-1}>Custom</MenuItem>*/}
+        {/*    </Select>*/}
+        {/*    <hr/>*/}
+        {/*    <Typography variant="h5">Game Properties</Typography>*/}
+        {/*    <FormControlLabel disabled={!customGameType} control={<Checkbox value={gameTypeData.enableBlankTiles} />} label="Enable Blank Tiles" />*/}
+        {/*    <FormControlLabel disabled={!customGameType} control={<Checkbox value={gameTypeData.startAnywhere}/>} label="Start Anywhere" />*/}
+        {/*</FormGroup>*/}
+        {/*<FormGroup>*/}
+        {/*    <Box>*/}
+        {/*        <Typography>Board Size</Typography>*/}
+        {/*        <TextField disabled={!customGameType} margin="normal" label="Width" type="number" value={gameTypeData.boardWidth}/>*/}
+        {/*        <TextField disabled={!customGameType} margin="normal" label="Height" type="number" value={gameTypeData.boardHeight}/>*/}
+        {/*    </Box>*/}
+        {/*    <TextField disabled={!customGameType} margin="normal" label="Bag Size" type="number" value={gameTypeData.tileBagSize}/>*/}
+        {/*    <TextField disabled={!customGameType} margin="normal" label="Deck Size" type="number" value={gameTypeData.playerDeckSize}/>*/}
+        {/*    <TextField disabled={!customGameType} margin="normal" label="Tile Count" type="number" value={gameTypeData.playerTileCount}/>*/}
+        {/*    <Select disabled={!customGameType} margin="normal" value={gameTypeData.bonusTilePattern || "regular"} label="Game Type">*/}
+        {/*        <MenuItem value="none">None</MenuItem>*/}
+        {/*        <MenuItem value="regular">Regular</MenuItem>*/}
+        {/*        <MenuItem value="stripe">Stripe</MenuItem>*/}
+        {/*        <MenuItem value="border">Border</MenuItem>*/}
+        {/*    </Select>*/}
+        {/*</FormGroup>*/}
         <Button onClick={createLobby} disabled={loading}>Create</Button>
     </Container>
 }

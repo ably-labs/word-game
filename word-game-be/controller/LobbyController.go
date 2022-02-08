@@ -67,11 +67,40 @@ func (lc *LobbyController) PatchLobby(c echo.Context) error {
 		return c.JSON(400, entity.ErrInvalidInput)
 	}
 
-	if lobbyUpdate.State != entity.LobbyInGame {
+	if lobbyUpdate.State != entity.LobbyInGame && lobbyUpdate.State != entity.LobbyWaitingForPlayers {
 		return c.JSON(400, entity.ErrInvalidInput)
 	}
 
 	lobby := c.Get("lobby").(*model.Lobby)
+
+	// Round over -> Waiting resets the lobby
+	if lobby.State == entity.LobbyRoundOver {
+		// Load the game type
+		gameType := model.GameType{ID: lobby.GameTypeID}
+		lc.db.Find(&gameType)
+
+		lobby.Board = util.NewBoard(gameType.BoardWidth, gameType.BoardHeight)
+		tileBag := util.NewTileBag()
+
+		// Load all the lobby members
+		var members []model.LobbyMember
+		lc.db.Preload("User").Where("lobby_id = ?", lobby.ID).Find(&members)
+		for _, member := range members {
+			member.Score = 0
+			memberDeck := util.TakeFromBag(gameType.PlayerTileCount, &tileBag)
+			squares := make([]entity.Square, gameType.PlayerDeckSize)
+			member.Deck = entity.SquareSet{
+				Squares: &squares,
+				Width:   gameType.PlayerDeckSize,
+				Height:  1,
+			}
+			member.Deck.AddTiles(memberDeck)
+			_ = util.PublishLobbyMessage(lc.ably, lobby.ID, "scoreUpdate", member)
+			go lc.db.Save(&member)
+		}
+
+		lobby.Bag = tileBag
+	}
 
 	lobby.State = lobbyUpdate.State
 
@@ -215,16 +244,19 @@ func (lc *LobbyController) PostLobby(c echo.Context) error {
 
 	newLobby.IdStr = strconv.Itoa(int(*newLobby.ID))
 
+	// Create a deck the correct size
+	squares := make([]entity.Square, gameType.PlayerDeckSize)
 	newLobbyMember := &model.LobbyMember{
 		UserID:     *user.ID,
 		LobbyID:    *newLobby.ID,
 		MemberType: constant.MemberTypePlayer,
-		Deck: entity.SquareSet{
-			Squares: &ownerDeck,
-			Width:   9,
-			Height:  1,
-		},
 	}
+	newLobbyMember.Deck = entity.SquareSet{
+		Squares: &squares,
+		Width:   gameType.PlayerDeckSize,
+		Height:  1,
+	}
+	newLobbyMember.Deck.AddTiles(ownerDeck)
 
 	err = lc.db.Create(newLobbyMember).Error
 
@@ -288,11 +320,17 @@ func (lc *LobbyController) PutMember(c echo.Context) error {
 
 	// If they are a player, create a tile deck for them and take from the bag
 	if lobbyMember.MemberType == constant.MemberTypePlayer {
-		newDeck := util.TakeFromBag(7, &lobby.Bag)
-		squares := make([]entity.Square, 9)
+		gameType := model.GameType{
+			ID: lobby.GameTypeID,
+		}
+
+		lc.db.Find(&gameType)
+
+		newDeck := util.TakeFromBag(gameType.PlayerTileCount, &lobby.Bag)
+		squares := make([]entity.Square, gameType.PlayerDeckSize)
 		lobbyMember.Deck = entity.SquareSet{
 			Squares: &squares,
-			Width:   9,
+			Width:   gameType.PlayerDeckSize,
 			Height:  1,
 		}
 		lobbyMember.Deck.AddTiles(newDeck)
@@ -327,35 +365,50 @@ func (lc *LobbyController) PutMember(c echo.Context) error {
 }
 
 func (lc *LobbyController) DeleteMember(c echo.Context) error {
-	delMember := entity.DeleteMember{}
-	err := c.Bind(&delMember)
-	if err != nil {
-		return c.JSON(400, entity.ErrInvalidInput)
-	}
-
 	lobby := c.Get("lobby").(*model.Lobby)
 	user := c.Get("user").(*model.User)
-	// If not lobby creator, only allow removing yourself
-	if lobby.CreatorID != user.ID || delMember.UserID != user.ID {
-		return c.JSON(403, entity.ErrForbidden)
-	}
 
 	lobbyMember := c.Get("lobbyMember").(*model.LobbyMember)
 
-	err = lc.db.Delete(lobbyMember).Error
+	err := lc.db.Delete(lobbyMember).Error
 	if err != nil {
 		fmt.Println(err)
 		return c.JSON(500, entity.ErrDatabaseError)
 	}
 
+	// If the lobby is owned by the current player, just end the entire game
+	if lobbyMember.UserID == *lobby.CreatorID {
+		err := lc.db.Delete(lobby).Error
+		if err != nil {
+			fmt.Println(err)
+			return c.JSON(500, entity.ErrDatabaseError)
+		}
+
+		_ = lc.ably.Channels.Get("lobby-list").Publish(context.Background(), "lobbyRemove", lobby)
+		_ = util.PublishLobbyMessage(lc.ably, lobby.ID, "lobbyRemove", nil)
+
+		return c.NoContent(204)
+	}
+
 	if lobbyMember.MemberType == constant.MemberTypePlayer {
+		// Add the remaining tiles back into the bag
+		if lobbyMember.Deck.TileCount() > 0 {
+			lobby.Bag.AddTiles(*lobbyMember.Deck.Squares)
+		}
+
+		// Skip the players turn if it's currently their turn
+		if *lobby.PlayerTurnID == lobbyMember.UserID {
+			*lobby.PlayerTurnID = util.GetNextTurn(lobby)
+		}
+
 		lobby.CurrentPlayers--
 		_ = util.LobbyListUpdate(lc.ably, lobby)
+		_ = util.PublishLobbyMessage(lc.ably, lobby.ID, "lobbyUpdate", lobby)
 		lc.db.Save(lobby)
 	}
 
 	_ = util.PublishLobbyMessage(lc.ably, lobby.ID, "message", entity.ChatSent{
-		Message: fmt.Sprintf("%s left the game", user.Name), // TODO: This shows the remover's name if another user was kicked
+		Message: fmt.Sprintf("%s left the game", user.Name),
 		Author:  "system",
 	})
 	_ = util.PublishLobbyMessage(lc.ably, lobby.ID, "memberRemove", lobbyMember)

@@ -26,11 +26,11 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	err = db.AutoMigrate(model.User{}, model.GameType{}, model.Lobby{}, model.LobbyMember{}, model.Message{})
+	//err = db.AutoMigrate(model.User{}, model.GameType{}, model.Lobby{}, model.LobbyMember{}, model.Message{})
 
-	if err != nil {
-		log.Fatalln(err)
-	}
+	//if err != nil {
+	//		log.Fatalln(err)
+	//	}
 
 	// Save the standard type
 	standardType := model.GameType{

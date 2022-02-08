@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ably-labs/word-game/word-game-be/entity"
+	"github.com/ably-labs/word-game/word-game-be/model"
 	"github.com/ably-labs/word-game/word-game-be/util/layout"
 	"math"
 	"math/rand"
@@ -117,6 +118,9 @@ func TakeFromBag(n int, bag *entity.SquareSet) []entity.Square {
 		*bag.Squares = (*bag.Squares)[n+1:]
 	}
 	for i := range tiles {
+		if tiles[i].Tile == nil {
+			continue
+		}
 		tiles[i].Tile.Draggable = true
 	}
 	return tiles
@@ -149,6 +153,9 @@ func ValidateBoard(squareSet entity.SquareSet) (int, error) {
 		score := 0
 		multiplier := 0
 		for _, square := range word {
+			if square.Tile == nil {
+				continue
+			}
 			constructedWord += square.Tile.Letter
 			squareScore := GetSquareScore(*square)
 			squareMult := GetSquareWordMultiplier(*square)
@@ -374,4 +381,17 @@ func GetRowStart(squareSet entity.SquareSet, index int) int {
 // GetRowEnd gets the end index of a row based on the width of the entity.SquareSet
 func GetRowEnd(squareSet entity.SquareSet, index int) int {
 	return index + (squareSet.Width - 1 - (index % squareSet.Width))
+}
+
+func GetNextTurn(lobby *model.Lobby) uint32 {
+	for i, member := range lobby.Members {
+		if member.UserID == *lobby.PlayerTurnID {
+			if i == len(lobby.Members)-1 {
+				return lobby.Members[0].UserID
+			}
+			return lobby.Members[i+1].UserID
+		}
+	}
+
+	return lobby.Members[0].UserID
 }

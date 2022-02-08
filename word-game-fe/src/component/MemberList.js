@@ -1,10 +1,10 @@
 import '../css/memberList.css'
 
 import React from 'react';
-import {List, ListItem, ListItemText} from "@mui/material";
+import {Box, Button, List, ListItem, ListItemText} from "@mui/material";
 
 
-export default ({lobby, memberPresence, members})=>{
+export default ({lobby, memberPresence, members, user, leaveLobby, skipUser})=>{
     return <div id="memberList">
         <List>
             {members.filter((m)=>m.type !== "spectator" || memberPresence[m.id] && memberPresence[m.id].state !== "offline" ).map((member)=>{
@@ -24,6 +24,10 @@ export default ({lobby, memberPresence, members})=>{
                     />
                 </ListItem>})}
         </List>
+        <Box sx={{position: "absolute", bottom: 5}}>
+            <Button onClick={leaveLobby}>Leave</Button>
+            {user.id === lobby.creatorId ? <Button onClick={skipUser}>Skip User</Button> : ""}
+        </Box>
     </div>
 }
 

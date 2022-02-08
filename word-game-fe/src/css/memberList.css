@@ -2,6 +2,7 @@
     width: 15vw;
     height: 50vh;
     border: 1px solid grey;
+    position: relative;
 }
 
 .activity {

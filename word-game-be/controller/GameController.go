@@ -94,6 +94,7 @@ func (gc *GameController) PatchBoard(c echo.Context) error {
 
 	// Make sure the tiles actually exist
 	if !validatePos(fromBoard, moveTile.FromIndex) || !validatePos(toBoard, moveTile.ToIndex) {
+		fmt.Println("Move pos doesn't exist")
 		return c.JSON(400, entity.ErrInvalidInput)
 	}
 
@@ -193,16 +194,7 @@ func (gc *GameController) EndTurn(c echo.Context) error {
 
 	// If we're still in play, set the next turn
 	if lobby.State == entity.LobbyInGame {
-		for i, member := range lobby.Members {
-			if member.UserID == *lobby.PlayerTurnID {
-				if i == len(lobby.Members)-1 {
-					*lobby.PlayerTurnID = lobby.Members[0].UserID
-				} else {
-					*lobby.PlayerTurnID = lobby.Members[i+1].UserID
-				}
-				break
-			}
-		}
+		*lobby.PlayerTurnID = util.GetNextTurn(lobby)
 		fmt.Println("It is now this players turn ", *lobby.PlayerTurnID)
 	}
 

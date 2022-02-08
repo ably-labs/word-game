@@ -3,19 +3,24 @@ import Chat from "../component/Chat";
 
 import "../css/lobby.css";
 import MemberList from "../component/MemberList";
-import {useParams} from "react-router-dom";
+import {useNavigate, useParams} from "react-router-dom";
 import {useEffect, useRef, useState} from "react";
 import defAxios from "../Http";
 import JoinGameDialog from "../component/dialog/JoinGameDialog";
+import LeaveGameDialog from "../component/dialog/LeaveGameDialog";
+import LobbyDeletedDialog from "../component/dialog/LobbyDeletedDialog";
 
 
 export default ({realtime, user})=>{
     const params = useParams();
+    const navigate = useNavigate();
     const lobbyId = params.id;
 
 
     const [lobby, setLobby] = useState({});
     const [joining, setJoining] = useState(true);
+    const [leaving, setLeaving] = useState(false);
+    const [ended, setEnded] = useState(false);
     const [members, setMembers] = useState([]);
     const [memberPresence, setMemberPresence] = useState({});
     const [channel, setChannel] = useState(null);
@@ -32,8 +37,17 @@ export default ({realtime, user})=>{
                     currentPlayers: lobby.currentPlayers+1
                 })
                 break;
+            case "memberRemove":
+                setMembers(members.filter((m)=>m.id !== message.data.id))
+                setLobby({...lobby, currentPlayers: lobby.currentPlayers-1});
+                break;
             case "lobbyUpdate":
                 setLobby(message.data);
+                break;
+            case "lobbyRemove":
+                setEnded(true);
+                setJoining(false);
+                setLeaving(false);
                 break;
             case "scoreUpdate":
                 setMembers(members.map((m)=>m.id === message.data.id ? {...m, score: message.data.score} : m));
@@ -96,8 +110,6 @@ export default ({realtime, user})=>{
     }, [channel, lobby, members])
 
 
-
-
     useEffect(()=>{
         if(!channel || !user?.id)return;
         channel.presence.enterClient(""+user.id);
@@ -120,13 +132,30 @@ export default ({realtime, user})=>{
         defAxios.put(`lobby/${lobbyId}/member`, {type: "spectator"}).then(()=>setJoining(false));
     }
 
+    const skipUser = ()=>{
+        defAxios.post(`game/${lobbyId}/boards`, null, {validateStatus: ()=>true});
+    }
+
+    const startLeave = ()=>{
+        setLeaving(true);
+    }
+
+    const finishLeave= ()=>{
+        defAxios.delete(`lobby/${lobbyId}/member`).then(()=>navigate(".."));
+    }
+
+    const cancelLeave = ()=>{
+        setLeaving(false);
+    }
+
     if(joining)
         return <JoinGameDialog open={true} joinGame={joinGame} startSpectating={startSpectating}/>
-
 
     return <div id="lobby">
         <GameWindow realtime={realtime} lobby={lobby} members={members} user={user} channel={channel}/>
         <Chat realtime={realtime} lobbyId={lobbyId} members={members} channel={channel}/>
-        <MemberList realtime={realtime} lobby={lobby} members={members} memberPresence={memberPresence} user={user} channel={channel}/>
+        <MemberList realtime={realtime} lobby={lobby} members={members} memberPresence={memberPresence} user={user} channel={channel} skipUser={skipUser} leaveLobby={startLeave}/>
+        <LeaveGameDialog open={leaving} lobby={lobby} leaveGame={finishLeave} cancel={cancelLeave} isOwner={lobby.creatorId === user.id}/>
+        <LobbyDeletedDialog open={ended}/>
     </div>
 }
