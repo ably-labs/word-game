@@ -8,7 +8,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/sessions v1.2.1
 	github.com/labstack/echo-contrib v0.11.0
-	github.com/labstack/echo/v4 v4.6.2
+	github.com/labstack/echo/v4 v4.9.0
 	github.com/stretchr/testify v1.7.0
 	gorm.io/datatypes v1.0.5
 	gorm.io/driver/postgres v1.2.3
